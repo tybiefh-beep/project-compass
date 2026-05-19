@@ -1,0 +1,3108 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude·Skill 文件生成器</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+  :root{--bg:#141413;--bg2:#1a1a18;--bg3:#20201e;--bg4:#282826;--border:rgba(255,255,255,0.05);--border2:rgba(255,255,255,0.08);--text:#f5f4f1;--text2:#989890;--text3:#6b6b65;--accent:#d97757;--accent2:#c56545;--green:#5fa88b;--amber:#d4a853;--red:#d9695a;--blue:#6b9ac4;--mono:'JetBrains Mono',monospace;--sans:'DM Sans',sans-serif;--chat-font:16px;--input-font:17px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:280px 230px 1fr 320px;height:100vh;overflow:hidden}
+
+  /* API Panel — project + provider + API key */
+  .api-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  /* Nav Panel — mode, stages, prefs, files */
+  .nav-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;min-width:0;border-left:1px solid var(--border)}
+  /* Docs Panel — Claude docs + reference */
+  .docs-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;min-width:0;border-left:1px solid var(--border)}
+  .logo{padding:18px 14px 14px;flex-shrink:0}
+  .logo h1{font-size:14px;font-weight:500;letter-spacing:-0.2px}
+  .logo p{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+  .sec{padding:0 12px;margin-bottom:16px;flex-shrink:0}
+  .sec-label{font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .sec-label:hover{color:var(--text2)}
+  .sec-toggle{font-size:11px;transition:transform 0.2s;display:inline-block}
+  .sec-toggle.folded{transform:rotate(-90deg)}
+
+  /* Provider list */
+  .provider-list{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;transition:max-height 0.25s}
+  .provider-list.collapsed{max-height:0;overflow:hidden}
+  .provider-list::-webkit-scrollbar{width:4px}
+  .provider-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .pb{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text2);text-align:left;transition:all 0.15s}
+  .pb:hover{background:var(--bg3);color:var(--text)}
+  .pb.active{background:rgba(217,119,87,0.1);color:var(--text)}
+  .pb-name{flex:1;min-width:0;font-weight:400}
+  .pb-model{font-size:10px;color:var(--text3);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+  .pb-status{flex-shrink:0;font-size:10px;font-family:var(--mono)}
+  .pb-status.ok{color:var(--green)}
+  .pb-status.key{color:var(--amber)}
+  .pdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+
+  /* Project */
+  .proj-row{display:flex;gap:4px;align-items:center}
+  .proj-name{flex:1;font-size:13px;font-weight:400;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:4px 6px;border-radius:6px;transition:background 0.15s}
+  .proj-name:hover{background:var(--bg3)}
+  .proj-btn{width:28px;height:28px;padding:0;border-radius:6px;border:none;background:transparent;cursor:pointer;font-size:16px;font-family:var(--sans);color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+  .proj-btn:hover{background:var(--bg3);color:var(--text)}
+
+  /* Model selector */
+  .model-row{display:flex;gap:4px;align-items:center}
+  .model-select{flex:1;padding:8px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--mono);color:var(--text);outline:none;cursor:pointer;appearance:none;min-width:0;transition:border-color 0.2s}
+  .model-select:focus{border-color:var(--accent)}
+  .model-select option{background:var(--bg3)}
+  .verify-btn{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:11px;font-family:var(--sans);color:var(--text2);white-space:nowrap;transition:all 0.15s}
+  .verify-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .verify-btn:disabled{opacity:0.3;cursor:not-allowed}
+  .model-custom-row{margin-top:5px}
+  .model-status{font-size:10px;margin-top:4px;display:flex;align-items:center;gap:4px;font-family:var(--mono)}
+  .model-status.ok{color:var(--green)}
+  .model-status.err{color:var(--red)}
+  .model-status.checking{color:var(--amber)}
+  .model-status.none{color:var(--text3)}
+  .model-tag{display:inline-block;font-size:9px;padding:1px 4px;border-radius:3px;margin-left:3px;font-family:var(--mono);vertical-align:middle}
+  .tag-r{background:rgba(95,168,139,0.1);color:var(--green)}
+  .tag-p{background:rgba(212,168,83,0.1);color:var(--amber)}
+  .tag-l{background:rgba(107,154,196,0.1);color:var(--blue)}
+
+  /* API key */
+  .api-row{display:flex;gap:4px}
+  .api-input{flex:1;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--mono);color:var(--text);outline:none;min-width:0;transition:border-color 0.2s}
+  .api-input:focus{border-color:var(--accent)}
+  .api-input::placeholder{color:var(--text3);font-size:11px}
+  .api-save{padding:8px 14px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:500;font-family:var(--sans);cursor:pointer;white-space:nowrap;transition:background 0.15s}
+  .api-save:hover{background:var(--accent2)}
+  .api-status{font-size:10px;margin-top:4px;font-family:var(--mono)}
+  .api-status.ok{color:var(--green)}
+  .api-status.err{color:var(--red)}
+  .api-status.none{color:var(--text3)}
+
+  /* Mode — Claude-style subtle segmented control */
+  .mode-row{display:flex;gap:2px;background:var(--bg3);border-radius:8px;padding:3px}
+  .mode-btn{flex:1;padding:6px 2px;border-radius:6px;border:none;background:transparent;cursor:pointer;font-size:11px;font-weight:400;font-family:var(--sans);color:var(--text3);text-align:center;transition:all 0.2s}
+  .mode-btn:hover{color:var(--text2)}
+  .mode-btn.active{background:var(--bg);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,0.3)}
+
+  /* Scrollable bottom area */
+  .scroll-bottom{flex:1;overflow-y:auto;min-height:0;padding:0 0 8px}
+  /* Stages */
+  .stages-sec{padding:0 16px;margin-bottom:12px}
+  .si{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:13px;color:var(--text3);margin-bottom:1px;transition:all 0.15s}
+  .si.active{background:var(--bg3);color:var(--text)}
+  .si.done{color:var(--text2)}
+  .sn{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;background:var(--bg3);color:var(--text3);flex-shrink:0;font-family:var(--mono)}
+  .si.done .sn{background:rgba(95,168,139,0.1);color:var(--green)}
+  .si.active .sn{background:rgba(217,119,87,0.12);color:var(--accent)}
+
+  /* Output */
+  .out-sec{padding:10px 16px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:5px}
+  .out-btn{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:12px;font-family:var(--sans);color:var(--text2);text-align:left;display:flex;align-items:center;gap:7px;transition:all 0.15s}
+  .out-btn:hover:not(:disabled){border-color:var(--border2);color:var(--text);background:var(--bg3)}
+  .out-btn:disabled{opacity:0.25;cursor:not-allowed}
+
+  /* File cards */
+  .file-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 11px;transition:all 0.15s}
+  .file-card.has-file{border-color:rgba(95,168,139,0.15);background:rgba(95,168,139,0.02)}
+  .fc-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+  .fc-icon{font-size:13px;flex-shrink:0}
+  .fc-name{font-size:12px;font-weight:500;color:var(--text);font-family:var(--mono)}
+  .fc-meta{font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:5px;padding-left:19px}
+  .fc-meta.has-file{color:var(--green)}
+  .fc-acts{display:flex;gap:4px;padding-left:19px}
+  .fc-btn{padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--text3);transition:all 0.15s}
+  .fc-btn:hover:not(:disabled){border-color:var(--border2);color:var(--text);background:var(--bg4)}
+  .fc-btn:disabled{opacity:0.2;cursor:not-allowed}
+
+  /* Main */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .topbar{padding:10px 24px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .topbar-info{flex:1;font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-model{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(217,119,87,0.08);padding:3px 10px;border-radius:6px}
+  .clear-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:12px;font-family:var(--sans);color:var(--text3);transition:all 0.15s}
+  .clear-btn:hover{border-color:var(--border2);color:var(--text2);background:var(--bg3)}
+
+  /* Chat — Claude-style: centered, airy, minimal */
+  .chat{flex:1;overflow-y:auto;padding:32px;display:flex;flex-direction:column;gap:24px}
+  .chat::-webkit-scrollbar{width:4px}
+  .chat::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .msg-row{display:flex;gap:12px;max-width:720px;margin:0 auto;width:100%}
+  .msg-row.user{flex-direction:row-reverse}
+  .av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0;margin-top:2px}
+  .av.ai{background:rgba(217,119,87,0.1);color:var(--accent)}
+  .av.hu{background:rgba(107,154,196,0.1);color:var(--blue)}
+  .bubble{max-width:75%;background:transparent;border:none;border-radius:0;padding:0;font-size:var(--chat-font);line-height:1.75;color:var(--text)}
+  .msg-row.user .bubble{background:transparent;border:none}
+  .bubble code{font-family:var(--mono);font-size:13px;background:var(--bg3);padding:1px 6px;border-radius:4px}
+  .bubble pre{font-family:var(--mono);font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:10px 0;overflow-x:auto;line-height:1.6;color:var(--text2);white-space:pre-wrap}
+  .sys-msg{text-align:center;font-size:12px;color:var(--text3);font-family:var(--mono);padding:4px 0;align-self:center}
+
+  /* Patch */
+  .patch-card{margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:14px}
+  .patch-head{padding:10px 14px;background:var(--bg2);display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .patch-field{font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .conf{font-size:10px;padding:2px 8px;border-radius:12px;font-family:var(--mono);font-weight:400}
+  .conf-low{background:rgba(212,168,83,0.08);color:var(--amber);border:1px solid rgba(212,168,83,0.15)}
+  .conf-med{background:rgba(107,154,196,0.08);color:var(--blue);border:1px solid rgba(107,154,196,0.15)}
+  .conf-high{background:rgba(95,168,139,0.08);color:var(--green);border:1px solid rgba(95,168,139,0.15)}
+  .patch-body{padding:12px 14px;color:var(--text2);line-height:1.7;background:var(--bg2);font-size:14px}
+  .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+  .diff-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+  .dl{font-size:10px;font-weight:500;margin-bottom:4px;color:var(--text3)}
+  .dl.cur{color:var(--text3)}.dl.sug{color:var(--green)}
+  .dc{font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.5}
+  .patch-reason{font-size:12px;color:var(--text3);margin-top:6px}
+  .patch-acts{padding:10px 14px;display:flex;gap:6px;background:var(--bg2)}
+  .pb-act{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text2);transition:all 0.15s}
+  .pb-act:hover{color:var(--text);border-color:var(--border2)}
+  .pb-act.ok{border-color:rgba(95,168,139,0.2);color:var(--green)}.pb-act.ok:hover{background:rgba(95,168,139,0.05)}
+  .pb-act.no{border-color:rgba(217,105,90,0.2);color:var(--red)}.pb-act.no:hover{background:rgba(217,105,90,0.05)}
+  .patch-done{padding:10px 14px;font-size:12px;font-family:var(--mono);background:var(--bg2)}
+
+  /* Typing */
+  .dots{display:flex;gap:5px;align-items:center;padding:4px 0}
+  .dots span{width:5px;height:5px;border-radius:50%;background:var(--text3);animation:pu 1.2s infinite}
+  .dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+  @keyframes pu{0%,80%,100%{opacity:.15}40%{opacity:.6}}
+
+  /* Input — Claude-style: prominent, rounded, clean */
+  .input-area{border-top:1px solid var(--border);background:var(--bg);padding:16px 24px 20px;display:flex;gap:10px;align-items:flex-end;flex-shrink:0}
+  textarea#inp{flex:1;padding:13px 18px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;font-size:var(--input-font);font-family:var(--sans);color:var(--text);outline:none;resize:none;min-height:52px;max-height:180px;line-height:1.5;transition:border-color 0.2s}
+  textarea#inp:focus{border-color:var(--border2)}
+  textarea#inp::placeholder{color:var(--text3);font-size:var(--input-font)}
+  .send-btn{padding:10px 22px;background:var(--accent);border:none;border-radius:16px;color:#fff;font-size:16px;font-weight:500;font-family:var(--sans);cursor:pointer;white-space:nowrap;transition:background 0.15s;height:52px}
+  .send-btn:hover{background:var(--accent2)}
+  .send-btn:disabled{opacity:0.3;cursor:not-allowed}
+
+  /* Upload */
+  .upload-btn{padding:0;background:var(--bg2);border:1px solid var(--border);border-radius:16px;color:var(--text2);font-size:18px;cursor:pointer;transition:all 0.15s;height:52px;width:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .upload-btn:hover{border-color:var(--border2);color:var(--text)}
+
+  /* Retract */
+  .msg-retract{font-size:11px;color:var(--text3);cursor:pointer;background:none;border:none;padding:1px 5px;margin-left:6px;float:right;font-family:var(--sans);transition:color 0.15s;opacity:0}
+  .msg-row.user .bubble:hover .msg-retract{opacity:0.5}
+  .msg-retract:hover{color:var(--red)!important;opacity:1!important}
+
+  /* Modal */
+  .mo{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(16px)}
+  .mb{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:700px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.6)}
+  .mh{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .mt{font-size:14px;font-weight:500;font-family:var(--mono);color:var(--accent)}
+  .mc-btn{width:28px;height:28px;border-radius:50%;border:none;background:transparent;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+  .mc-btn:hover{background:var(--bg3);color:var(--text)}
+  .mc{flex:1;overflow-y:auto;padding:16px 20px;font-family:var(--mono);font-size:13px;line-height:1.75;color:var(--text2);white-space:pre-wrap}
+  .mc::-webkit-scrollbar{width:4px}
+  .mc::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .mf{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
+  .m-btn{padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text2);transition:all 0.15s}
+  .m-btn:hover{border-color:var(--border2);color:var(--text);background:var(--bg4)}
+  .m-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .m-btn.pri:hover{background:var(--accent2)}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+  /* Feedback & Rating */
+  .star-rating{display:flex;gap:4px;justify-content:center;margin:12px 0}
+  .star{font-size:28px;cursor:pointer;color:var(--border2);transition:color 0.1s;user-select:none}
+  .star.active,.star:hover{color:var(--amber)}
+  .star:hover~.star{color:var(--border2)!important}
+  .feedback-reason{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--sans);color:var(--text);resize:vertical;min-height:56px;outline:none;transition:border-color 0.2s}
+  .feedback-reason:focus{border-color:var(--accent)}
+  .feedback-reason::placeholder{color:var(--text3)}
+  .rating-score{text-align:center;font-size:13px;color:var(--text2);margin-bottom:6px;font-family:var(--mono)}
+  .learning-stats{font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;margin-top:8px;font-family:var(--mono)}
+
+  /* Knowledge panel */
+  .knowledge-panel{padding:8px 0;border-top:1px solid var(--border);max-height:180px;overflow-y:auto;margin:0 16px}
+  .knowledge-panel::-webkit-scrollbar{width:4px}
+  .knowledge-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .knowledge-item{font-size:11px;padding:6px 8px;margin-bottom:3px;border-radius:6px;background:var(--bg3);border:none;line-height:1.5;color:var(--text2)}
+  .knowledge-item .ki-tag{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;margin-right:4px;font-family:var(--mono)}
+  .ki-tag.tip{background:rgba(217,119,87,0.08);color:var(--accent)}
+  .ki-tag.news{background:rgba(95,168,139,0.08);color:var(--green)}
+  .ki-tag.warn{background:rgba(212,168,83,0.08);color:var(--amber)}
+  .knowledge-refresh{font-size:10px;color:var(--text3);cursor:pointer;text-align:center;padding:3px;border-radius:4px;transition:all 0.15s;font-family:var(--mono)}
+  .knowledge-refresh:hover{color:var(--accent);background:var(--bg3)}
+
+  /* Docs Panel */
+  .docs-scroll{flex:1;overflow-y:auto;padding:14px 12px}
+  .docs-scroll::-webkit-scrollbar{width:4px}
+  .docs-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .docs-title{font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;font-family:var(--mono)}
+  .docs-section{margin-bottom:16px}
+  .docs-section h3{font-size:11px;font-weight:500;color:var(--accent);margin-bottom:6px;font-family:var(--mono)}
+  .docs-section p,.docs-section li{font-size:10px;color:var(--text3);line-height:1.6;margin-bottom:4px}
+  .docs-section ul{padding-left:14px}
+  .docs-section code{font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:3px;color:var(--text2)}
+  .docs-section pre{font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow-x:auto;color:var(--text2);line-height:1.5;white-space:pre-wrap;max-height:200px;overflow-y:auto}
+
+</style>
+</head>
+<body>
+<div class="app">
+<div class="api-panel">
+  <div class="logo"><h1>Claude · Skill</h1><p>v2.5 · 双模型优化</p></div>
+
+  <!-- Project -->
+  <div class="sec" style="padding-bottom:8px">
+    <div class="sec-label">当前项目</div>
+    <div class="proj-row">
+      <span id="projName" class="proj-name" title="点击切换项目" onclick="showProjectList()">默认项目</span>
+      <button class="proj-btn" onclick="newProject()" title="新建项目">+</button>
+    </div>
+  </div>
+
+  <!-- Provider -->
+  <div class="sec">
+    <div class="sec-label" id="providerToggle" onclick="toggleProviders()">AI 提供商<span class="sec-toggle" id="secToggle">▼</span></div>
+    <div class="provider-list" id="providerList"></div>
+  </div>
+
+  <!-- Model -->
+  <div class="sec" id="modelSec" style="display:none">
+    <div class="sec-label">模型版本</div>
+    <div class="model-row">
+      <select class="model-select" id="modelSelect" onchange="onModelChange()"></select>
+      <button class="verify-btn" id="verifyBtn" onclick="verifyModel()">验证 ↗</button>
+    </div>
+    <div id="modelCustomRow" class="model-custom-row" style="display:none">
+      <input type="text" class="api-input" id="modelCustomInput" placeholder="输入模型 ID…" style="width:100%;font-size:11px" oninput="onCustomModelInput()">
+    </div>
+    <div class="model-status none" id="modelStatus">· 未验证</div>
+  </div>
+
+  <!-- API Key -->
+  <div class="sec">
+    <div class="sec-label">API Key</div>
+    <div class="api-row">
+      <input type="password" class="api-input" id="apiKeyInput" placeholder="粘贴 API Key…">
+      <button class="api-save" onclick="saveApiKey()">保存</button>
+    </div>
+    <div class="api-status none" id="apiStatus">· 未配置</div>
+    <div id="baseUrlRow" style="margin-top:5px;display:none">
+      <input type="text" class="api-input" id="baseUrlInput" placeholder="Base URL，如 http://localhost:11434/v1/…" style="width:100%;font-size:11px">
+    </div>
+  </div>
+</div>
+
+<div class="nav-panel">
+  <div class="logo"><p style="font-size:11px;color:var(--text3);font-family:var(--mono)">导航与文件</p></div>
+
+  <!-- Mode -->
+  <div class="sec">
+    <div class="sec-label">自动化模式</div>
+    <div class="mode-row">
+      <button class="mode-btn" id="mode-checkpoint" onclick="setMode('checkpoint')" title="每阶段暂停确认">Check</button>
+      <button class="mode-btn" id="mode-full_auto" onclick="setMode('full_auto')" title="全自主推进">自动</button>
+      <button class="mode-btn" id="mode-compare" onclick="setMode('compare')" title="并排对比修改">对比</button>
+      <button class="mode-btn" id="mode-manual" onclick="setMode('manual')" title="仅建议">手动</button>
+    </div>
+  </div>
+
+  <div class="scroll-bottom">
+
+  <!-- Stages -->
+  <div class="stages-sec">
+    <div class="sec-label" style="margin-bottom:6px">生成阶段</div>
+    <div class="si active" id="si-0"><div class="sn">1</div>项目描述</div>
+    <div class="si" id="si-1"><div class="sn">2</div>自动化识别</div>
+    <div class="si" id="si-2"><div class="sn">3</div>CLAUDE.md 生成</div>
+    <div class="si" id="si-3"><div class="sn">4</div>SKILL.md 提取</div>
+    <div class="si" id="si-4"><div class="sn">5</div>监督修补</div>
+    <div class="si" id="si-5"><div class="sn">6</div>文件就绪</div>
+  </div>
+
+  <!-- 个人偏好 -->
+  <div class="sec">
+    <div class="sec-label" style="cursor:pointer" onclick="togglePrefs()">个人偏好<span style="font-size:9px;color:var(--text3);margin-left:4px">(local.md)</span><span class="sec-toggle" id="prefsToggle">▼</span></div>
+    <div id="prefsPanel">
+      <textarea id="prefsInput" placeholder="输入你的个人偏好，一行一条…&#10;例如：&#10;用中文回复&#10;不要给我列选项，直接选最优方案" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:10px;font-family:var(--mono);color:var(--text);resize:vertical;min-height:60px;outline:none;line-height:1.6;transition:border-color 0.2s" oninput="onPrefsChange()"></textarea>
+      <div style="display:flex;gap:4px;margin-top:5px">
+        <button onclick="savePrefs()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--text2)">保存</button>
+        <button onclick="generateLocalMd()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--accent);background:transparent;cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--accent)" id="genLocalMdBtn" disabled>生成</button>
+      </div>
+      <div id="prefsStatus" style="font-size:9px;color:var(--text3);margin-top:3px;font-family:var(--mono)"></div>
+    </div>
+  </div>
+
+  <!-- Knowledge Panel -->
+  <div class="sec" style="padding-bottom:6px">
+    <div class="sec-label" style="cursor:pointer" onclick="refreshKnowledge()">AI 动态<span style="font-size:9px;color:var(--text3);margin-left:4px">(点击刷新)</span></div>
+    <div class="knowledge-panel" id="knowledgePanel"></div>
+  </div>
+
+  <!-- Outputs -->
+  <div class="out-sec">
+    <div class="sec-label" style="margin-bottom:0">项目文件</div>
+    <div class="file-card" id="fileCardClaude">
+      <div class="fc-top"><span class="fc-icon">📄</span><span class="fc-name">CLAUDE.md</span></div>
+      <div class="fc-meta" id="fcMetaClaude">尚未生成</div>
+      <div class="fc-acts">
+        <button class="fc-btn" id="fcViewClaude" disabled onclick="showPreview('claude')">查看</button>
+        <button class="fc-btn" id="fcCopyClaude" disabled onclick="copyT('claude')">复制</button>
+        <button class="fc-btn" id="fcDlClaude" disabled onclick="dlFile('claude')">下载</button>
+      </div>
+    </div>
+    <div class="file-card" id="fileCardSkill">
+      <div class="fc-top"><span class="fc-icon">🔧</span><span class="fc-name">SKILL.md</span></div>
+      <div class="fc-meta" id="fcMetaSkill">尚未生成</div>
+      <div class="fc-acts">
+        <button class="fc-btn" id="fcViewSkill" disabled onclick="showPreview('skill')">查看</button>
+        <button class="fc-btn" id="fcCopySkill" disabled onclick="copyT('skill')">复制</button>
+        <button class="fc-btn" id="fcDlSkill" disabled onclick="dlFile('skill')">下载</button>
+      </div>
+    </div>
+    <!-- 各 Skill 独立卡片 -->
+    <div id="skillCards"></div>
+    <div class="file-card" id="fileCardLocal">
+      <div class="fc-top"><span class="fc-icon">👤</span><span class="fc-name">CLAUDE.local.md</span></div>
+      <div class="fc-meta" id="fcMetaLocal">个人偏好</div>
+      <div class="fc-acts">
+        <button class="fc-btn" id="fcViewLocal" disabled onclick="showLocalMdPreview()">查看</button>
+        <button class="fc-btn" id="fcDlLocal" onclick="generateLocalMd()">下载</button>
+      </div>
+    </div>
+    <button class="out-btn" id="outSelectDir" onclick="selectOutputDir()" style="color:var(--amber)">📁 选择输出文件夹</button>
+    <div id="dirPath" style="font-size:9px;color:var(--text3);padding:0 4px;font-family:var(--mono);word-break:break-all"></div>
+    <button class="out-btn" id="outTest" onclick="testFileOutput()" style="color:var(--accent);font-size:10px">🧪 测试文件输出</button>
+    <button class="out-btn" id="outExport" disabled onclick="exportAll()">⬇ 导出全部文件</button>
+    <button class="out-btn" id="outOptimize" onclick="optimizePrompt()" title="让 AI 审查并优化工具自身的逻辑">🔧 优化工具逻辑</button>
+    <button class="out-btn" onclick="resetAll()" style="color:var(--text3)">↺ 重置对话</button>
+  </div>
+  </div><!-- /scroll-bottom -->
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-info" id="topbarInfo">选择提供商并配置 Key 后开始</div>
+    <div class="topbar-model" id="topbarModel" style="display:none"></div>
+    <div class="mode-row" style="width:auto;flex-shrink:0">
+      <button class="mode-btn" id="fs-small" onclick="setFontSize('small')" style="font-size:10px">A</button>
+      <button class="mode-btn active" id="fs-medium" onclick="setFontSize('medium')" style="font-size:12px">A</button>
+      <button class="mode-btn" id="fs-large" onclick="setFontSize('large')" style="font-size:14px">A</button>
+    </div>
+    <button class="clear-btn" onclick="resetAll()">清空</button>
+  </div>
+  <div class="chat" id="chat"></div>
+  <div class="input-area">
+    <textarea id="inp" rows="1" placeholder="描述你的项目…（Ctrl+Enter 发送）" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <input type="file" id="fileInput" style="display:none" accept=".txt,.md,.json,.xml,.yml,.yaml,.toml" onchange="handleFileUpload(event)">
+    <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()" title="上传文本文件">📎</button>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+  </div>
+</div>
+
+<div class="docs-panel">
+  <div class="logo"><p style="font-size:11px;color:var(--text3);font-family:var(--mono)">Claude Code 参考</p></div>
+  <div class="docs-scroll">
+    <div class="docs-section">
+      <h3>CLAUDE.md 文件体系</h3>
+      <p>Claude Code 启动时按以下优先级加载指令文件：</p>
+      <ul>
+        <li><code>~/.claude/CLAUDE.md</code> — 全局个人指令，所有项目生效</li>
+        <li><code>./CLAUDE.md</code> — 项目根目录指令，随 Git 提交</li>
+        <li><code>./.claude/CLAUDE.md</code> — 项目隐藏指令（建议不提交）</li>
+        <li><code>./.claude/rules/*.md</code> — 规则目录，按文件名排序加载</li>
+        <li><code>CLAUDE.local.md</code> — 个人偏好（应加入 .gitignore）</li>
+      </ul>
+    </div>
+    <div class="docs-section">
+      <h3>CLAUDE.md 内容结构</h3>
+      <p>推荐用 Markdown 写，AI 直接读取。常见章节：</p>
+      <ul>
+        <li><b>Project</b> — 项目名称和一句话定义</li>
+        <li><b>User Profile</b> — 用户技术水平、沟通偏好</li>
+        <li><b>Tech Stack</b> — 语言、框架、运行环境</li>
+        <li><b>Architecture</b> — 目录结构、模块划分</li>
+        <li><b>Commands</b> — 构建/测试/运行命令</li>
+        <li><b>Code Style</b> — 命名规范、注释风格</li>
+        <li><b>自动模式</b> — 自主权限边界、确认点</li>
+        <li><b>Run Context</b> — 模型架构说明（壳+脑）</li>
+      </ul>
+    </div>
+    <div class="docs-section">
+      <h3>@ 导入语法</h3>
+      <p>用 <code>@文件路径</code> 导入其他文件内容，拼接到指令中：</p>
+      <pre># Project: 我的工具
+@README.md
+@docs/architecture.md</pre>
+      <p>适合引用已有文档，避免维护两份相同内容。</p>
+    </div>
+    <div class="docs-section">
+      <h3>.claude/rules/ 规则目录</h3>
+      <p>当 CLAUDE.md 超过 200 行，应拆分到规则目录：</p>
+      <pre>.claude/
+├── CLAUDE.md          # 主文件，放核心指令
+└── rules/
+    ├── api-design.md  # API 设计规范
+    ├── testing.md     # 测试规范
+    └── git.md         # Git 工作流</pre>
+      <p>规则文件自动被读取，可按文件名前缀控制排序。</p>
+    </div>
+    <div class="docs-section">
+      <h3>YAML Frontmatter</h3>
+      <p>CLAUDE.md 顶部可写 YAML frontmatter，用 <code>paths</code> 限定作用域：</p>
+      <pre>---
+paths: "src/api/**"
+---
+# API 模块规范
+仅在处理 src/api/ 下文件时加载此指令。</pre>
+      <p><code>paths</code> 支持 glob 模式，让规则精准匹配文件范围。</p>
+    </div>
+    <div class="docs-section">
+      <h3>SKILL.md 技能定义</h3>
+      <p>放在项目根目录或 <code>.claude/skills/</code> 下，XML 格式：</p>
+      <pre>&lt;skill&gt;
+  &lt;name&gt;code-review&lt;/name&gt;
+  &lt;description&gt;代码审查助手&lt;/description&gt;
+  &lt;trigger&gt;审查|review|code review&lt;/trigger&gt;
+  &lt;anti-trigger&gt;快速修复|hotfix&lt;/anti-trigger&gt;
+  &lt;steps&gt;
+    1. 读取变更文件
+    2. 检查安全隐患
+    3. 审查代码风格
+    4. 输出改进建议
+  &lt;/steps&gt;
+&lt;/skill&gt;</pre>
+    </div>
+    <div class="docs-section">
+      <h3>Skill 字段说明</h3>
+      <ul>
+        <li><code>&lt;name&gt;</code> — 唯一标识，字母+连字符</li>
+        <li><code>&lt;description&gt;</code> — 一句话描述，AI 用来理解用途</li>
+        <li><code>&lt;trigger&gt;</code> — 触发关键词或正则，支持 | 分隔</li>
+        <li><code>&lt;anti-trigger&gt;</code> — 排除场景，防止误触发</li>
+        <li><code>&lt;steps&gt;</code> — 执行步骤，每步一行，顺序执行</li>
+      </ul>
+    </div>
+    <div class="docs-section">
+      <h3>Skill 触发机制</h3>
+      <p>Claude Code 在每条用户消息前检查所有 skill：</p>
+      <ul>
+        <li>用户输入匹配 trigger → 加载该 skill 的 steps</li>
+        <li>同时匹配多个 skill → 全部加载，按文件名排序</li>
+        <li>匹配 anti-trigger → 排除该 skill，即使 trigger 命中</li>
+        <li>trigger 太宽 → 干扰正常对话；太窄 → 永不触发</li>
+      </ul>
+      <p>关键：trigger 应足够具体，避免与系统内置行为重叠。</p>
+    </div>
+    <div class="docs-section">
+      <h3>文件发现顺序</h3>
+      <p>Claude Code 按此顺序加载文件（高优先级先）：</p>
+      <ol style="padding-left:14px;font-size:10px;color:var(--text3);line-height:1.8">
+        <li><code>~/.claude/CLAUDE.md</code> — 全局用户指令</li>
+        <li><code>./CLAUDE.md</code> — 项目根目录指令</li>
+        <li><code>./.claude/CLAUDE.md</code> — 项目隐藏指令</li>
+        <li><code>./.claude/rules/*.md</code> — 规则文件</li>
+        <li><code>./SKILL.md</code> — 技能定义</li>
+        <li><code>./.claude/skills/*.skill.md</code> — 独立技能文件</li>
+        <li><code>CLAUDE.local.md</code> — 本地个人偏好</li>
+      </ol>
+    </div>
+    <div class="docs-section">
+      <h3>内存系统 (Memory)</h3>
+      <p>持久化记忆，存储在 <code>.claude/memory/</code>：</p>
+      <ul>
+        <li><code>user</code> — 用户角色、偏好、知识背景</li>
+        <li><code>feedback</code> — 用户反馈的工作方式</li>
+        <li><code>project</code> — 项目进度、目标、决策记录</li>
+        <li><code>reference</code> — 外部资源指针（文档链接等）</li>
+      </ul>
+      <p>AI 在对话中自动读写记忆，跨 session 持久化。</p>
+    </div>
+    <div class="docs-section">
+      <h3>最佳实践</h3>
+      <ul>
+        <li>CLAUDE.md 控制在 200 行内，超出拆分到 rules/</li>
+        <li>每个 skill 的 trigger 写 3-5 个核心关键词</li>
+        <li>anti-trigger 宁可多写，减少误触发</li>
+        <li>steps 每步一个动作，不合并多步骤</li>
+        <li>CLAUDE.local.md 放个人偏好，加入 .gitignore</li>
+        <li>API Key、密码等敏感信息绝不写入 CLAUDE.md</li>
+      </ul>
+    </div>
+  </div>
+</div></div>
+
+<script>
+// ====== PROVIDER DEFINITIONS ======
+const PROVIDERS = [
+  {
+    id:'anthropic', name:'Claude', dot:'#7c6af7',
+    baseUrl:'https://api.anthropic.com/v1/messages',
+    models:[
+      {id:'claude-opus-4-7',      label:'claude-opus-4-7',      tag:'r'},
+      {id:'claude-sonnet-4-6',    label:'claude-sonnet-4-6',    tag:'r'},
+      {id:'claude-haiku-4-5',     label:'claude-haiku-4-5',     tag:'r'},
+      {id:'claude-opus-4-5',      label:'claude-opus-4-5',      tag:'p'},
+      {id:'claude-sonnet-4-5',    label:'claude-sonnet-4-5',    tag:'p'},
+      {id:'claude-opus-4',        label:'claude-opus-4',        tag:'l'},
+      {id:'claude-sonnet-4',      label:'claude-sonnet-4',      tag:'l'},
+      {id:'claude-3-5-sonnet',    label:'claude-3-5-sonnet-20241022', tag:'l'},
+      {id:'__custom__',           label:'自定义模型 ID…',       tag:''}
+    ],
+    defaultModel:'claude-sonnet-4-6',
+    headers: k=>({'Content-Type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,system:sys,messages:msgs}),
+    parseReply: d=>d.content?.map(b=>b.text||'').join('')||'',
+    verifyBody: model=>({model,max_tokens:512,system:'Reply with OK',messages:[{role:'user',content:'OK?'}]}),
+    verifyCheck: d=>!!(d.content?.length)
+  },
+  {
+    id:'openai', name:'GPT', dot:'#10b981',
+    baseUrl:'https://api.openai.com/v1/chat/completions',
+    models:[
+      {id:'gpt-4.1',          label:'gpt-4.1',              tag:'r'},
+      {id:'gpt-4.1-mini',     label:'gpt-4.1-mini',         tag:'r'},
+      {id:'gpt-4o',            label:'gpt-4o',              tag:'r'},
+      {id:'gpt-4o-mini',       label:'gpt-4o-mini',         tag:'r'},
+      {id:'o4-mini',           label:'o4-mini',             tag:'r'},
+      {id:'o3-mini',           label:'o3-mini',             tag:'p'},
+      {id:'gpt-4-turbo',       label:'gpt-4-turbo',         tag:'l'},
+      {id:'o1',                label:'o1',                  tag:'l'},
+      {id:'__custom__',        label:'自定义模型 ID…',       tag:''}
+    ],
+    defaultModel:'gpt-4.1',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'deepseek', name:'DeepSeek', dot:'#3b82f6',
+    baseUrl:'https://api.deepseek.com/v1/chat/completions',
+    models:[
+      {id:'deepseek-chat',       label:'deepseek-chat (V3)',     tag:'r'},
+      {id:'deepseek-reasoner',   label:'deepseek-reasoner (R1)', tag:'r'},
+      {id:'deepseek-v4-pro',     label:'deepseek-v4-pro',        tag:'r'},
+      {id:'deepseek-coder',      label:'deepseek-coder',         tag:'l'},
+      {id:'deepseek-v2.5',       label:'deepseek-v2.5',          tag:'l'},
+      {id:'__custom__',          label:'自定义模型 ID…',          tag:''}
+    ],
+    defaultModel:'deepseek-chat',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>{
+      // 标准模型用 system 消息；自定义模型（代理）合并到 user 消息，避免代理拒绝 system 角色
+      const stdModels = ['deepseek-chat','deepseek-reasoner','deepseek-coder','deepseek-v2.5','deepseek-v4-pro'];
+      if(!stdModels.includes(model) && sys){
+        const merged = msgs.map(m=>({...m}));
+        const idx = merged.findIndex(m=>m.role==='user');
+        if(idx>=0) merged[idx] = {...merged[idx], content: sys + '\n\n' + merged[idx].content};
+        else merged.unshift({role:'user', content: sys});
+        return {model, max_tokens:4096, messages: merged};
+      }
+      return {model, max_tokens:4096, messages:[{role:'system',content:sys},...msgs]};
+    },
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content),
+    promptPatch: '\n\n## 重要输出格式要求（DeepSeek 专用）\n- 严格按照阶段定义执行，一次只推进一个阶段\n- 输出 [STAGE:N] 标记后直接进入内容，不要额外的前言说明\n- xml 代码块必须用 ```xml 包裹，代码块外不要有任何说明文字\n- 不要输出"以下是生成的 SKILL.md："这类引导语句',
+    preprocessReply: function(reply){ if(!reply) return reply; let r=reply.replace(/^[\s\S]*?(?=\[STAGE:\d\]|```(?:markdown|xml|bash)?)/, ''); if(!r) r=reply; if(!/\[STAGE:\d\]/.test(r)&&!/```/.test(r)) return reply; return r; }
+  },
+  {
+    id:'qwen', name:'通义千问', dot:'#f59e0b',
+    baseUrl:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    models:[
+      {id:'qwen-max',            label:'qwen-max',            tag:'r'},
+      {id:'qwen-plus',           label:'qwen-plus',           tag:'r'},
+      {id:'qwen-turbo',          label:'qwen-turbo',          tag:'r'},
+      {id:'qwen-long',           label:'qwen-long',           tag:'r'},
+      {id:'qwen2.5-72b-instruct',label:'qwen2.5-72b-instruct',tag:'l'},
+      {id:'qwen2.5-32b-instruct',label:'qwen2.5-32b-instruct',tag:'l'},
+      {id:'__custom__',          label:'自定义模型 ID…',       tag:''}
+    ],
+    defaultModel:'qwen-plus',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content),
+    promptPatch: '\n\n## 重要（通义千问专用）\n- 每个回复必须以 [STAGE:N] 开头，N 为当前阶段号，不得省略\n- 严格按照阶段推进，不要在阶段4同时生成多个 skill\n- 即使你认为内容很简单，也必须输出完整的 [STAGE:N] 标记\n- 一次只生成一个 skill，完成后必须等待用户确认再继续',
+    preprocessReply: function(reply){ if(!reply) return reply; if(!/\[STAGE:\d\]/.test(reply)){ const stage = S.stage || 0; return `[STAGE:${stage}] ${reply}`; } return reply; }
+  },
+  {
+    id:'zhipu', name:'智谱 GLM', dot:'#8b5cf6',
+    baseUrl:'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    models:[
+      {id:'glm-4-plus',    label:'glm-4-plus',       tag:'r'},
+      {id:'glm-4-air',     label:'glm-4-air',         tag:'r'},
+      {id:'glm-4-flash',   label:'glm-4-flash',       tag:'r'},
+      {id:'glm-4',         label:'glm-4',             tag:'l'},
+      {id:'glm-4-long',    label:'glm-4-long',        tag:'l'},
+      {id:'glm-z1-flash',  label:'glm-z1-flash (R)',  tag:'r'},
+      {id:'__custom__',    label:'自定义模型 ID…',     tag:''}
+    ],
+    defaultModel:'glm-4-plus',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'gemini', name:'Gemini', dot:'#ef4444',
+    baseUrl:'https://generativelanguage.googleapis.com/v1beta/models',
+    models:[
+      {id:'gemini-2.5-pro',          label:'gemini-2.5-pro',          tag:'r'},
+      {id:'gemini-2.5-flash',        label:'gemini-2.5-flash',        tag:'r'},
+      {id:'gemini-2.0-flash',        label:'gemini-2.0-flash',        tag:'p'},
+      {id:'gemini-1.5-pro',          label:'gemini-1.5-pro',          tag:'l'},
+      {id:'gemini-1.5-flash',        label:'gemini-1.5-flash',        tag:'l'},
+      {id:'__custom__',              label:'自定义模型 ID…',             tag:''}
+    ],
+    defaultModel:'gemini-2.5-pro',
+    headers: k=>({'Content-Type':'application/json'}),
+    buildBody:(msgs,sys,model,key)=>{
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      return {_url:url, contents:msgs.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]})), systemInstruction:{parts:[{text:sys}]}};
+    },
+    parseReply: d=>d.candidates?.[0]?.content?.parts?.[0]?.text||'',
+    verifyBody:(model,key)=>{
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      return {_url:url, contents:[{role:'user',parts:[{text:'Reply with OK'}]}]};
+    },
+    verifyCheck: d=>!!(d.candidates?.[0]?.content),
+    customUrl:true,
+    promptPatch: '\n\n## CRITICAL (Gemini-specific)\n- You MUST start every response with [STAGE:N] marker\n- Follow the stage definitions exactly — do NOT merge multiple stages into one response\n- Output code blocks exactly as specified, no extra wrapping text\n- Each skill must be generated one at a time, waiting for user confirmation',
+    preprocessReply: function(reply){ if(!reply) return reply; if(!/\[STAGE:\d\]/.test(reply)){ const stage = S.stage || 0; return `[STAGE:${stage}] ${reply}`; } return reply; }
+  },
+  {
+    id:'moonshot', name:'Moonshot', dot:'#06b6d4',
+    baseUrl:'https://api.moonshot.cn/v1/chat/completions',
+    models:[
+      {id:'moonshot-v1-128k', label:'moonshot-v1-128k', tag:'r'},
+      {id:'moonshot-v1-32k',  label:'moonshot-v1-32k',  tag:'r'},
+      {id:'moonshot-v1-8k',   label:'moonshot-v1-8k',   tag:'r'},
+      {id:'__custom__',       label:'自定义模型 ID…',    tag:''}
+    ],
+    defaultModel:'moonshot-v1-128k',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'OK?'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'groq', name:'Groq', dot:'#f97316',
+    baseUrl:'https://api.groq.com/openai/v1/chat/completions',
+    models:[
+      {id:'llama-3.3-70b-versatile',       label:'llama-3.3-70b',              tag:'r'},
+      {id:'deepseek-r1-distill-llama-70b', label:'deepseek-r1-llama-70b (R)',  tag:'p'},
+      {id:'qwen-2.5-32b',                  label:'qwen-2.5-32b',               tag:'r'},
+      {id:'mixtral-8x7b-32768',            label:'mixtral-8x7b',               tag:'r'},
+      {id:'gemma2-9b-it',                  label:'gemma2-9b',                  tag:'r'},
+      {id:'llama-3.1-8b-instant',          label:'llama-3.1-8b',               tag:'r'},
+      {id:'__custom__',                    label:'自定义模型 ID…',              tag:''}
+    ],
+    defaultModel:'llama-3.3-70b-versatile',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'siliconflow', name:'硅基流动', dot:'#a855f7',
+    baseUrl:'https://api.siliconflow.cn/v1/chat/completions',
+    models:[
+      {id:'deepseek-ai/DeepSeek-V3',         label:'DeepSeek-V3',          tag:'r'},
+      {id:'deepseek-ai/DeepSeek-R1',         label:'DeepSeek-R1 (R)',      tag:'p'},
+      {id:'Qwen/Qwen2.5-72B-Instruct',       label:'Qwen2.5-72B',          tag:'r'},
+      {id:'Qwen/Qwen2.5-32B-Instruct',       label:'Qwen2.5-32B',          tag:'r'},
+      {id:'Qwen/Qwen2.5-7B-Instruct',        label:'Qwen2.5-7B',           tag:'r'},
+      {id:'meta-llama/Llama-3.3-70B-Instruct',label:'Llama-3.3-70B',       tag:'r'},
+      {id:'__custom__',                      label:'自定义模型 ID…',        tag:''}
+    ],
+    defaultModel:'deepseek-ai/DeepSeek-V3',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'baichuan', name:'百川', dot:'#22c55e',
+    baseUrl:'https://api.baichuan-ai.com/v1/chat/completions',
+    models:[
+      {id:'Baichuan4',         label:'Baichuan4',          tag:'r'},
+      {id:'Baichuan3-Turbo',   label:'Baichuan3-Turbo',    tag:'r'},
+      {id:'Baichuan2-Turbo',   label:'Baichuan2-Turbo',    tag:'l'},
+      {id:'__custom__',        label:'自定义模型 ID…',      tag:''}
+    ],
+    defaultModel:'Baichuan4',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'yi', name:'零一万物', dot:'#6366f1',
+    baseUrl:'https://api.lingyiwanwu.com/v1/chat/completions',
+    models:[
+      {id:'yi-large',      label:'yi-large',       tag:'r'},
+      {id:'yi-medium',     label:'yi-medium',      tag:'r'},
+      {id:'yi-lightning',  label:'yi-lightning',   tag:'r'},
+      {id:'yi-vision',     label:'yi-vision',      tag:'p'},
+      {id:'__custom__',    label:'自定义模型 ID…',  tag:''}
+    ],
+    defaultModel:'yi-large',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'mistral', name:'Mistral', dot:'#14b8a6',
+    baseUrl:'https://api.mistral.ai/v1/chat/completions',
+    models:[
+      {id:'mistral-large-latest',  label:'mistral-large',   tag:'r'},
+      {id:'mistral-small-latest',  label:'mistral-small',   tag:'r'},
+      {id:'codestral-latest',      label:'codestral',       tag:'r'},
+      {id:'mistral-medium',        label:'mistral-medium',  tag:'l'},
+      {id:'__custom__',            label:'自定义模型 ID…',   tag:''}
+    ],
+    defaultModel:'mistral-large-latest',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'together', name:'Together', dot:'#ec4899',
+    baseUrl:'https://api.together.xyz/v1/chat/completions',
+    models:[
+      {id:'meta-llama/Llama-3.3-70B-Instruct-Turbo', label:'Llama-3.3-70B',         tag:'r'},
+      {id:'deepseek-ai/DeepSeek-V3',                 label:'DeepSeek-V3',            tag:'r'},
+      {id:'Qwen/Qwen2.5-72B-Instruct-Turbo',         label:'Qwen2.5-72B',            tag:'r'},
+      {id:'mistralai/Mixtral-8x7B-Instruct-v0.1',    label:'Mixtral-8x7B',           tag:'r'},
+      {id:'__custom__',                              label:'自定义模型 ID…',          tag:''}
+    ],
+    defaultModel:'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply with OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content)
+  },
+  {
+    id:'custom', name:'自定义', dot:'#6b7280',
+    baseUrl:'',
+    models:[{id:'__custom__',label:'输入模型 ID…',tag:''}],
+    defaultModel:'__custom__',
+    headers: k=>({'Content-Type':'application/json','Authorization':'Bearer '+k}),
+    buildBody:(msgs,sys,model)=>({model,max_tokens:4096,messages:[{role:'system',content:sys},...msgs]}),
+    parseReply: d=>d.choices?.[0]?.message?.content||d.content?.[0]?.text||'',
+    verifyBody: model=>({model,max_tokens:512,messages:[{role:'user',content:'Reply OK'}]}),
+    verifyCheck: d=>!!(d.choices?.[0]?.message?.content||d.content?.[0]?.text)
+  }
+];
+
+const DEFAULT_SYSTEM_PROMPT = `你是一个专业的 Claude Code 项目规范生成助手。你的核心使命：帮助用户（尤其是编程新手）将他们脑中的项目想法和协作需求，翻译成 Claude Code 能精确理解和执行的 CLAUDE.md 和 SKILL.md 文件。
+
+## 核心理念
+
+- 用户不擅长精确描述自己的需求，你的任务是**引导他们说出真正重要的信息**
+- CLAUDE.md 不是文档，是**给另一个 AI 的操作手册**——它需要具体、可执行、有边界
+- SKILL.md 不是功能清单，是**可触发的工作流**——触发条件的设计决定了它会不会被用对
+- **产出的 CLAUDE.md 大概率被 DeepSeek 模型读取**（Claude Code 做壳，DeepSeek 做脑）。因此：全部用中文写、指令直接强硬、减少解释空间、结构化标记加显式说明
+- **SKILL.md 由 Claude Code 直接解析**，不受 DeepSeek 影响，触发条件等关键字段用英文写
+- **了解 Claude Code 最新记忆系统**，生成时主动利用：.claude/rules/ 路径作用域规则、@path 文件导入、CLAUDE.local.md 个人偏好、auto memory 自动记忆
+
+## Claude Code 记忆系统（生成时参考）
+
+Claude Code 有两套互补记忆：CLAUDE.md（你写指令）+ Auto Memory（Claude 自己积累经验）。
+
+生成 CLAUDE.md 和 SKILL.md 时必须考虑以下特性：
+
+1. **.claude/rules/ 路径作用域规则**：当 CLAUDE.md 超过 200 行，应建议拆分为模块化规则文件。每个文件用 YAML frontmatter 的 paths 字段指定适用范围。无 paths 的规则全局生效。
+
+2. **@path 文件导入**：CLAUDE.md 可用 @README.md 导入已有文件，避免重复。对已有 README 的项目优先使用。
+
+3. **CLAUDE.local.md 个人偏好**：项目根目录的 gitignored 文件，放个人设置（sandbox URL、本地测试数据等）。**对双模型架构用户尤其重要**：可在其中写死 DeepSeek 指令风格，不影响团队共享的 CLAUDE.md。生成 CLAUDE.md 后应提醒用户可创建此文件。
+
+4. **Auto Memory**：Claude Code 自动在 ~/.claude/projects/<project>/memory/ 保存经验。CLAUDE.md 不需要写"记住X"——那是 auto memory 的事。
+
+5. **AGENTS.md 兼容**：如果项目已有 AGENTS.md，CLAUDE.md 首行写 @AGENTS.md 即可，不必重写。
+
+## 核心规则（必须遵守）
+
+1. 回复开头加 [STAGE:N] 标记
+2. **full_auto 模式**：
+   - 用户选了全自动 = 不想被打断。直接从项目描述提取信息，一次生成 CLAUDE.md + SKILL.md，最后审阅一次即可
+   - 禁止逐阶段问答、禁止追问技术选择（从描述里能推断的直接推断，不确定的标注 [待确认]）
+   - 用户说"全自动""我不会参与""我不知道"时，不要给选项让用户选——直接选最优方案
+3. **checkpoint 模式**：每个阶段末尾询问用户确认，等回复后进入下一阶段
+4. **区分"用户描述工作流"和"用户想要自动化"**：
+   - 用户描述他的日常操作（如"我每次都要手动做X→Y→Z"）→ 他要的是自动化掉这些步骤，不是让你复现这些步骤
+   - 产出 CLAUDE.md 的 INTERVENTION_POINTS 应该比用户描述的确认点更少、更自动
+   - 不要把用户随口说的流程当成他想要的 checkpoint 数量
+5. 阶段4 必须严格基于阶段3 已确认的 CLAUDE.md 来提取技能
+
+## 沟通原则
+
+- **用具体场景代替抽象问题**。不要问"你的技术栈是什么？"，而是问"你平时写代码用什么语言？用什么工具运行和测试？"
+- **每个确认点给出具体选项**，不要让用户从零思考。例如："根据你的描述，自动化模式我推荐 checkpoint —— 因为你是新手，需要在关键节点确认。你觉得呢？还是你希望 AI 全自动执行？"
+- **发现用户描述模糊时，用举例来追问**。例如："你说的'部署'是指上传到服务器、还是发布到应用商店、还是推送到 GitHub Pages？"
+- **可以问，但只从需求层面问**。利用你的技术知识反向推断用户可能没说清楚的需求点，但问题必须用"你要什么效果"的方式问，禁止问"你选哪个技术/框架/工具"。例如：✅ "截图后你想存到桌面固定文件夹，还是每次弹窗让你选位置？" ❌ "你用 Tauri 还是 Electron？"
+
+---
+
+## 阶段定义
+
+### [STAGE:1] — 深度发现：了解你和你的项目
+目标：不只是了解项目做什么，更要了解**你怎么工作、AI 怎么帮到你**。
+
+#### 第一步：建立用户画像
+向用户了解以下信息（不需要全部问完，根据对话自然引导）：
+- **技术水平**：编程新手 / 熟悉某语言 / 经验丰富？——决定 CLAUDE.md 的指令粒度
+- **AI 协作经验**：用过 Claude Code 吗？遇到过什么问题？——发现痛点
+- **沟通偏好**：喜欢简短回复还是详细解释？中文还是英文？——决定 Communication Style
+- **工作节奏**：喜欢 AI 主动推进还是每步确认？——决定自动化模式
+
+#### 第二步：了解项目
+- 项目做什么？给谁用？
+- 技术栈（语言、框架、工具）
+- 项目目录结构（如果用户能描述的话）
+
+#### 第三步：发现痛点（最重要！）
+必须问出以下信息：
+- **最重复的操作是什么？**（每次都要手动做的事）
+- **AI 最容易搞砸什么？**（有没有以前 AI 犯过的错？）
+- **你最希望 AI "自动就知道"什么？**（不用每次解释的上下文）
+
+#### 第四步：场景验证
+用一个具体场景确认你的理解：
+"假设我对你说'帮我修一个 bug'，根据我目前对项目的理解，我应该：知道去哪里找代码（[基于你描述的目录结构]）、用什么方式测试（[基于你描述的工具]）、注意什么边界（[基于你描述的约束]）。这个理解对吗？"
+
+#### 末尾输出格式：
+1. 用户画像总结（3-4个要点）
+2. 项目理解总结（2-3句话）
+3. 识别到的痛点（2-3个）
+4. **末尾询问**："以上理解是否准确？有没有需要补充的？特别是你的技术水平和 AI 协作偏好，这会影响后续文件的写法。"
+
+---
+
+### [STAGE:2] — 自动化策略：从痛点到模式
+目标：基于阶段1的用户画像和痛点，推荐具体的自动化策略。
+
+- 推荐模式（full_auto / checkpoint / manual），**必须结合用户的技术水平和痛点来解释为什么**
+- 列出**具体场景**中适合自动化的操作，每个场景一句话：
+  - 例如："当你让我修 bug 时，我应该自动运行测试而不是让你手动执行"
+- 列出必须人工介入的节点，**用场景说明**：
+  - 例如："当我修改了涉及 API Key 的代码时，你必须检查一遍"
+- 如果用户是新手，额外说明每种模式下的具体体验是什么
+
+**末尾询问**："这个自动化策略合适吗？你觉得哪些操作 AI 可以更自主，哪些需要你把关？"
+
+---
+
+### [STAGE:3] — 生成 CLAUDE.md
+目标：生成 Claude Code 的项目操作手册。**内容必须基于阶段1和阶段2收集的真实信息，不要泛泛填充**。
+
+#### 生成前先确认
+如果你觉得某些关键信息还不够，**先问再生成**。宁可多问一轮，不要生成空洞内容。
+
+#### 生成规则
+- 用 \`\`\`markdown 包裹完整文件
+- 每个章节都要有实际内容，不确定的地方标注"[待确认]"
+- [待确认] 的字段最多 3 处，超过说明信息收集不足，应回头问用户
+- 用户画像必须写入 CLAUDE.md（放在 Overview 之后），因为这是 Claude Code 最重要的上下文
+
+#### 生成后场景验证
+生成 CLAUDE.md 后，选一个具体场景走查：
+"我用刚生成的 CLAUDE.md 模拟一下：如果你让我「添加一个新功能」，我会：[根据 Tech Stack 知道用什么语言]、[根据 Commands 知道怎么测试]、[根据 Code Style 知道代码风格]、[根据用户画像知道回复详略]。这个流程对吗？"
+
+**末尾询问**："CLAUDE.md 是否准确反映你的项目？特别是用户画像和 [待确认] 的字段请重点确认。"
+
+---
+
+### [STAGE:4] — 提取 SKILL.md
+目标：从 CLAUDE.md 中识别真正值得封装的操作，生成可被 Claude Code 正确触发的技能文件。
+
+#### 判断标准：一个操作值得封装为 skill，必须同时满足：
+1. **重复性**：用户会多次执行这个操作（至少每周一次）
+2. **步骤固定**：操作的步骤可以明确描述，不会每次都不一样
+3. **触发可识别**：用户的需求能通过关键词或上下文被 AI 准确识别
+4. **封装收益**：封装后能显著减少用户的输入量或 AI 的犯错率
+
+#### 第一步：候选清单分析 [STAGE:4]
+- **逐章节阅读 CLAUDE.md**，每个章节问："这里有值得封装的操作吗？"
+- 对每个候选 skill，列出：技能名、来源章节、一句话描述、封装价值
+- **必须列出你考虑过但排除的操作**，说明不符合哪条判断标准
+- 用清晰的分层列表输出
+
+**末尾询问**："以上候选清单是否完整？有没有需要增减的？"
+
+#### 第二步：逐个生成 skill [STAGE:4]
+**每次只生成 1 个 skill**。生成前先说明推理过程：
+- 依据了 CLAUDE.md 中哪段具体内容
+- 触发条件设计逻辑（考虑了哪些边界情况）
+- 为什么步骤这样编排
+
+#### 触发条件设计规则（关键！）：
+- ✅ 好的触发：包含具体关键词 + 操作对象。例如"用户要求运行测试"、"用户提到部署到生产环境"
+- ❌ 差的触发：太宽泛。例如"涉及文件操作时"、"用户提出需求时"——这会被所有任务触发
+- 每个 skill 至少 2 个反触发条件（anti-trigger），明确什么时候**不用**这个 skill
+- 触发条件之间不能互相重叠（两个 skill 都能匹配同一句话）
+- 避免与 Claude Code 内置命令冲突（如 /clear、/compact 等）
+
+#### 生成验证
+每个 skill 生成后，测试它的触发逻辑：
+"模拟测试：用户说'[可能触发的话]'→ 会触发这个 skill 吗？用户说'[可能误触的话]'→ 会被误触发吗？"
+
+**每个 skill 后询问用户是否满意。全部完成后，询问是否进入修补审查。**
+
+---
+
+### [STAGE:5] — 修补审查
+目标：交叉审查 CLAUDE.md 和 SKILL.md，确保两个文件一致、完整、无矛盾。
+
+#### 审查清单：
+1. **引用一致性**：SKILL.md 中引用的 CLAUDE.md 章节是否真实存在？
+2. **命令覆盖**：CLAUDE.md 中的命令/流程是否都有对应 skill（或合理排除）？
+3. **触发不重叠**：所有 skill 的触发条件是否互不冲突？
+4. **用户画像匹配**：CLAUDE.md 的指令粒度是否匹配用户技术水平？
+5. **[待确认] 清零**：还有未确认的字段吗？
+
+每条修补建议单独一行 JSON（不要放在代码块里），必须指出：目标文件、字段路径、当前内容、改进方案、理由、严重程度。
+
+---
+
+## CLAUDE.md 模板（阶段3使用）
+
+\`\`\`markdown
+# Project: [项目名称]
+
+@README.md  <!-- 如果项目已有 README，直接导入避免重复 -->
+
+## 运行架构（如有双模型）
+<!-- 如果用户使用 Claude Code（壳）+ 其他模型（脑）的组合，务必写明 -->
+当前组合：[如 Claude Code + DeepSeek]
+- CLAUDE.md 由 [模型名] 模型读取，需用中文写、指令直接强硬、禁止模糊表述
+- SKILL.md 由 Claude Code 解析，不受此影响
+
+## Overview
+[2-3句话：项目做什么、给谁用、核心价值]
+
+## User Profile（用户画像）⭐
+这是给 AI 看的用户档案，帮助调整协作方式：
+- **技术水平**：[新手/熟悉某语言/经验丰富] —— 决定代码解释的深度
+- **沟通偏好**：[简短/详细；中文/英文] —— 决定回复风格
+- **AI 协作痛点**：[具体问题，如"AI 经常忽略我的测试框架"]
+- **工作节奏**：[喜欢 AI 每步确认/希望 AI 自主推进]
+
+## Project Goals
+- [具体可衡量的目标]
+
+## Automation Mode
+MODE: [full_auto | checkpoint | manual]
+选择理由：[结合用户画像解释为什么选这个模式]
+
+INTERVENTION_POINTS:
+- [ ] [具体场景 — 什么时候用户必须介入]
+
+## Tech Stack
+- 语言：[语言及版本]
+- 框架：[框架及版本]
+- 部署：[部署方式]
+
+## Project Structure
+\`\`\`
+项目根目录/
+├── src/          -- [说明]
+├── tests/        -- [说明]
+└── .claude/      -- Claude Code 配置
+    ├── CLAUDE.md
+    └── rules/    -- 路径作用域规则（文件超过200行时拆分至此）
+\`\`\`
+
+## Architecture
+- [约束1]
+
+## Commands
+\`\`\`bash
+# 开发环境启动
+[具体命令]
+
+# 运行测试
+[具体命令]
+\`\`\`
+
+## Code Style
+- [具体规范]
+
+## AI 协作禁忌 ⚠️
+- [绝对不能做的事1，如"不要修改 .env 文件"]
+- [绝对不能做的事2，如"不要在没问我的情况下删文件"]
+
+## Key Dependencies
+- [依赖包名]：[用途说明]
+
+## 建议拆分为 .claude/rules/（如本文件超过200行）
+<!-- 当 CLAUDE.md 过长时，按主题拆分为独立规则文件 -->
+- .claude/rules/testing.md — paths: ["**/*.test.ts"]
+- .claude/rules/api-design.md — paths: ["src/api/**/*.ts"]
+
+## 个人偏好
+<!-- 提示用户创建 CLAUDE.local.md（gitignored）存放以下内容 -->
+- 本地测试数据路径
+- 个人 sandbox URL
+- [其他个人设置]
+\`\`\`
+
+---
+
+## SKILL.md 模板（阶段4使用）
+
+用 \`\`\`markdown 包裹。格式如下，触发条件和反触发条件必须具体到关键词，禁止泛泛表述。
+
+\`\`\`markdown
+# [英文技能名，kebab-case]
+
+## 触发条件
+- [用户说了包含"XXX"关键词时]
+- [用户要求做XXX操作时]
+
+## 反触发
+- [用户只是在讨论XXX，没有要执行时]
+- [涉及XXX时不触发，因为它有独立 skill]
+
+## 覆盖操作
+- [步骤1：具体操作描述]
+- [步骤2：具体操作描述]
+- [步骤3：具体操作描述]
+\`\`\`
+
+---
+
+## 修补建议格式（阶段5使用，每条单独一行 JSON）
+
+{"patch_id":"p1","target":"claude|skill","field":"[字段路径]","current":"[当前内容]","suggestion":"[改进后内容]","reason":"[为什么改]","confidence":"low|medium|high"}
+
+用中文回复。`;
+
+// ====== STATE ======
+let S = {
+  provider:null, mode:'full_auto', stage:0,
+  history:[], claudeMd:'', skillMd:'', loading:false,
+  apiKeys:{}, selectedModel:{}, verifiedModels:{},
+  systemPrompt: localStorage.getItem('csg_system_prompt') || DEFAULT_SYSTEM_PROMPT,
+  localMd: localStorage.getItem('csg_local_md') || '',  // 个人偏好 → CLAUDE.local.md
+  _prevClaudeMd:'', _prevSkillMd:'', _pendingClaudeMd:null, _pendingSkillMd:null,  // 对比模式用
+  _justGenerated:null,  // 标记刚生成的文件类型，用于下载后触发评分弹窗
+  _sessionHash: 's'+Date.now().toString(36),  // 会话标识，用于导出文件追踪
+  _dirHandle: null,  // File System Access API 目录句柄
+  _dirPath: ''        // 所选目录路径（仅用于显示）
+};
+try{ S.apiKeys=JSON.parse(localStorage.getItem('csg_keys')||'{}'); }catch(e){}
+try{ S.verifiedModels=JSON.parse(localStorage.getItem('csg_verified')||'{}'); }catch(e){}
+// 如果 localStorage 没有自定义 prompt，初始化为默认值
+if(!localStorage.getItem('csg_system_prompt')){
+  try{ localStorage.setItem('csg_system_prompt', DEFAULT_SYSTEM_PROMPT); }catch(e){}
+}
+
+// ====== INIT ======
+function init(){
+  // 恢复折叠状态
+  const collapsed = localStorage.getItem('csg_providers_collapsed');
+  const list=document.getElementById('providerList');
+  PROVIDERS.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='pb';btn.id='pb-'+p.id;
+    btn.onclick=()=>selectProvider(p.id);
+    list.appendChild(btn);
+  });
+  if(collapsed==='1'){ list.classList.add('collapsed'); document.getElementById('secToggle').classList.add('folded'); }
+  refreshProviderGrid();
+  initProject();
+  setMode(S.mode);
+  const savedFontSize=localStorage.getItem('fontSize')||'medium';
+  setFontSize(savedFontSize);
+  initPrefs();
+  refreshKnowledge();
+  addMsg('ai','欢迎！请从左侧选择 <b>AI 提供商</b> → 选择 <b>模型版本</b> → 填写 <b>API Key</b>，然后描述你的项目。你也可以点击 📎 上传已有文件。\n\n提示：点击「验证 ↗」可以实时测试所选模型是否可用。');
+}
+
+function toggleProviders(){
+  const list=document.getElementById('providerList');
+  const arrow=document.getElementById('secToggle');
+  list.classList.toggle('collapsed');
+  arrow.classList.toggle('folded');
+  localStorage.setItem('csg_providers_collapsed',list.classList.contains('collapsed')?'1':'0');
+}
+
+function refreshProviderGrid(){
+  PROVIDERS.forEach(p=>{
+    const btn=document.getElementById('pb-'+p.id);
+    if(!btn) return;
+    const hasKey = !!S.apiKeys[p.id];
+    const model = S.selectedModel[p.id] || p.defaultModel;
+    // 检查验证状态
+    const vkey = p.id+':'+model;
+    const verified = S.verifiedModels[vkey];
+    let statusHtml = '', statusCls = '';
+    if(verified===true){ statusHtml='✓ 已连接'; statusCls='ok'; }
+    else if(hasKey){ statusHtml='• 已配Key'; statusCls='key'; }
+
+    const isActive = S.provider && S.provider.id===p.id;
+    btn.className='pb'+(isActive?' active':'');
+    btn.innerHTML=`
+      <div class="pdot" style="background:${p.dot}"></div>
+      <span class="pb-name">${p.name}</span>
+      ${statusHtml?`<span class="pb-status ${statusCls}">${statusHtml}</span>`:''}
+      <span class="pb-model">${model}</span>`;
+  });
+}
+
+function selectProvider(id){
+  S.provider=PROVIDERS.find(p=>p.id===id);
+
+  // restore saved key
+  const saved=S.apiKeys[id]||'';
+  document.getElementById('apiKeyInput').value=saved;
+  document.getElementById('apiStatus').className='api-status '+(saved?'ok':'none');
+  document.getElementById('apiStatus').textContent=saved?'· 已保存':'· 未配置';
+
+  // base url for custom
+  document.getElementById('baseUrlRow').style.display=(id==='custom')?'block':'none';
+
+  // build model select
+  buildModelSelect();
+  document.getElementById('modelSec').style.display='block';
+  updateTopbar();
+  refreshProviderGrid();
+  initLearningStats();
+}
+
+function buildModelSelect(){
+  const p=S.provider;
+  const sel=document.getElementById('modelSelect');
+  sel.innerHTML='';
+  p.models.forEach(m=>{
+    const opt=document.createElement('option');
+    opt.value=m.id;
+    const tagMap={r:'[推荐] ',p:'[预览] ',l:'[旧版] '};
+    opt.textContent=(tagMap[m.tag]||'')+m.label;
+    sel.appendChild(opt);
+  });
+  // restore or default
+  const saved=S.selectedModel[p.id]||p.defaultModel;
+  sel.value=saved||p.models[0].id;
+  onModelChange();
+}
+
+function onModelChange(){
+  const p=S.provider; if(!p) return;
+  const sel=document.getElementById('modelSelect');
+  const val=sel.value;
+  S.selectedModel[p.id]=val;
+  const isCustom=val==='__custom__';
+  document.getElementById('modelCustomRow').style.display=isCustom?'block':'none';
+
+  const key=p.id+':'+(isCustom?'__custom__':val);
+  const verified=S.verifiedModels[key];
+  if(verified===true) setModelStatus('ok','· 已验证可用 ✓');
+  else if(verified===false) setModelStatus('err','· 验证失败');
+  else setModelStatus('none','· 未验证');
+  updateTopbar();
+  refreshProviderGrid();
+}
+
+function onCustomModelInput(){
+  setModelStatus('none','· 未验证');
+}
+
+function getActiveModel(){
+  const p=S.provider; if(!p) return '';
+  const sel=document.getElementById('modelSelect');
+  if(sel.value==='__custom__'){
+    return document.getElementById('modelCustomInput').value.trim();
+  }
+  return sel.value;
+}
+
+function setModelStatus(type,text){
+  const el=document.getElementById('modelStatus');
+  el.className='model-status '+type;
+  el.textContent=text;
+}
+
+function httpErrorMsg(status, body){
+  const tips = {
+    400: '请求参数错误，模型可能不支持该请求格式',
+    401: 'API Key 无效或已过期，请检查并重新填写',
+    403: '无权访问该模型，请检查账户权限',
+    404: '模型不存在或 URL 不正确，请检查模型名称',
+    429: '请求频率超限或余额不足，请稍等再试或切换模型',
+    500: '服务端内部错误，可稍后重试',
+    502: '服务端网关错误，可稍后重试',
+    503: '服务端暂时不可用，可稍后重试'
+  };
+  const tip = tips[status] || `HTTP ${status}`;
+  const detail = body.slice(0, 200);
+  return `${tip}\n详情：${detail}`;
+}
+
+async function verifyModel(){
+  const p=S.provider; if(!p) return;
+  const key=S.apiKeys[p.id];
+  if(!key){alert('请先保存 API Key');return;}
+  const model=getActiveModel();
+  if(!model){alert('请输入模型 ID');return;}
+
+  setModelStatus('checking','· 验证中…');
+  document.getElementById('verifyBtn').disabled=true;
+
+  try{
+    let body=p.verifyBody(model,key);
+    let url=p.customUrl&&body._url?body._url:p.baseUrl;
+    if(body._url) delete body._url;
+    if(p.id==='custom'){
+      const cu=document.getElementById('baseUrlInput').value.trim();
+      if(cu) url=cu;
+    }
+
+    const res=await fetch(url,{method:'POST',headers:p.headers(key),body:JSON.stringify(body)});
+    if(!res.ok){
+      const err=await res.text();
+      throw new Error(httpErrorMsg(res.status, err));
+    }
+    const data=await res.json();
+    const ok=p.verifyCheck(data);
+    const vkey=p.id+':'+model;
+    S.verifiedModels[vkey]=ok;
+    localStorage.setItem('csg_verified',JSON.stringify(S.verifiedModels));
+
+    if(ok){
+      setModelStatus('ok',`· 验证通过 ✓ — ${model}`);
+      addSysMsg(`✓ ${model} 连接验证成功，正在测试 [STAGE:N] 格式…`);
+      // 第二层验证：测试 [STAGE:N] 标记输出格式
+      try{
+        const stageTestSys = '你是一个项目规范生成助手。回复必须以 [STAGE:1] 开头，然后简短确认收到指令。';
+        const stageTestMsg = [{role:'user',content:'确认你的当前阶段。'}];
+        let sBody = p.buildBody(stageTestMsg, stageTestSys, model, key);
+        let sUrl = p.customUrl && sBody._url ? sBody._url : p.baseUrl;
+        if(sBody._url) delete sBody._url;
+        const sRes = await fetch(sUrl, {method:'POST', headers: p.headers(key), body: JSON.stringify(sBody)});
+        if(sRes.ok){
+          const sData = await sRes.json();
+          const sReply = p.parseReply(sData);
+          const hasStage = /\[STAGE:\d\]/.test(sReply);
+          if(hasStage){
+            addSysMsg(`✓ ${model} [STAGE:N] 格式测试通过`);
+          } else {
+            addSysMsg(`⚠ ${model} 格式测试：输出中未检测到 [STAGE:N] 标记。该模型可能不适合本生成器。\n实际输出前80字：${sReply.slice(0,80)}`);
+          }
+        } else {
+          addSysMsg(`⚠ 格式测试请求失败 (HTTP ${sRes.status})，跳过`);
+        }
+      }catch(e){
+        addSysMsg(`⚠ 格式测试出错：${e.message.slice(0,100)}`);
+      }
+    } else {
+      // 逐字段诊断，定位具体缺失什么
+      const c0 = data.choices?.[0];
+      const detail = [];
+      detail.push(`choices 存在: ${Array.isArray(data.choices)}`);
+      if (c0) {
+        detail.push(`choices[0].message 存在: ${!!c0.message}`);
+        if (c0.message) {
+          detail.push(`message.content 类型: ${typeof c0.message.content}`);
+          detail.push(`message.content 值: ${JSON.stringify(c0.message.content).slice(0, 80)}`);
+        }
+        detail.push(`choices[0] 完整结构: ${JSON.stringify(c0).slice(0, 200)}`);
+      } else {
+        // 可能用了其他字段名（如 text、delta 等）
+        detail.push(`choices[0] 完整结构: ${JSON.stringify(c0).slice(0, 200)}`);
+        detail.push(`data 顶层键: ${Object.keys(data).join(', ')}`);
+      }
+      setModelStatus('err',`· 响应格式异常，详情见聊天区`);
+      addSysMsg(`⚠ ${model} 响应格式异常。\n${detail.join('\n')}\n请在左侧「模型版本」中确认所选模型兼容 OpenAI chat/completions 格式。`);
+    }
+  }catch(e){
+    const vkey=p.id+':'+model;
+    S.verifiedModels[vkey]=false;
+    localStorage.setItem('csg_verified',JSON.stringify(S.verifiedModels));
+    setModelStatus('err','· 验证失败: '+e.message.slice(0,200));
+    addSysMsg('验证失败：'+e.message.slice(0,500));
+  }
+  document.getElementById('verifyBtn').disabled=false;
+  updateTopbar();
+  refreshProviderGrid();
+}
+
+function saveApiKey(){
+  if(!S.provider){alert('请先选择提供商');return;}
+  const key=document.getElementById('apiKeyInput').value.trim();
+  if(!key){alert('请输入 API Key');return;}
+  S.apiKeys[S.provider.id]=key;
+  localStorage.setItem('csg_keys',JSON.stringify(S.apiKeys));
+  document.getElementById('apiStatus').className='api-status ok';
+  document.getElementById('apiStatus').textContent='· 已保存';
+  if(S.provider.id==='custom'){
+    const cu=document.getElementById('baseUrlInput').value.trim();
+    if(cu) S.provider.baseUrl=cu;
+  }
+  refreshProviderGrid();
+}
+
+function setMode(m){
+  S.mode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mode-'+m).classList.add('active');
+  updateTopbar();
+  autoSaveProject();
+}
+
+// ====== 个人偏好 (CLAUDE.local.md) ======
+function togglePrefs(){
+  const panel=document.getElementById('prefsPanel');
+  const arrow=document.getElementById('prefsToggle');
+  const collapsed=panel.style.display==='none';
+  panel.style.display=collapsed?'':'none';
+  arrow.classList.toggle('folded',!collapsed);
+  localStorage.setItem('csg_prefs_collapsed', collapsed?'0':'1');
+}
+function onPrefsChange(){
+  S.localMd=document.getElementById('prefsInput').value;
+  try{ localStorage.setItem('csg_local_md', S.localMd); }catch(e){}
+  document.getElementById('genLocalMdBtn').disabled=!S.localMd.trim();
+  document.getElementById('prefsStatus').textContent=S.localMd.trim()?'已保存 '+(S.localMd.split('\n').filter(l=>l.trim()).length)+' 条偏好':'';
+  updateLocalMdCard();
+}
+function updateLocalMdCard(){
+  const lines=S.localMd.split('\n').filter(l=>l.trim()).length;
+  document.getElementById('fcMetaLocal').textContent=lines?`${lines} 条偏好`:'个人偏好';
+  document.getElementById('fcViewLocal').disabled=!lines;
+}
+function savePrefs(){
+  S.localMd=document.getElementById('prefsInput').value;
+  try{ localStorage.setItem('csg_local_md', S.localMd); }catch(e){}
+  document.getElementById('prefsStatus').textContent=S.localMd.trim()?'✓ 已保存 '+(S.localMd.split('\n').filter(l=>l.trim()).length)+' 条偏好':'· 未设置';
+  addSysMsg('个人偏好已保存');
+}
+function generateLocalMd(){
+  if(!S.localMd.trim()) return;
+  let content=`# Personal Preferences (个人偏好)
+<!-- 此文件由 Claude·Skill 生成器自动生成 -->
+<!-- 建议添加到 .gitignore，不提交到版本控制 -->
+
+`;
+  S.localMd.split('\n').filter(l=>l.trim()).forEach(line=>{
+    content+=`- ${line.trim()}\n`;
+  });
+  content+=`
+## 说明
+以上偏好会在每次 Claude Code 会话中加载（在 CLAUDE.md 之后加载），仅对当前项目生效。
+如需在所有项目中生效，请将偏好移至 ~/.claude/CLAUDE.md。
+`;
+  // 下载
+  const a=document.createElement('a');
+  a.href='data:text/markdown;charset=utf-8,'+encodeURIComponent(content);
+  a.download='CLAUDE.local.md';a.click();
+  addSysMsg('CLAUDE.local.md 已下载 — 放到项目根目录，记得加入 .gitignore');
+}
+function initPrefs(){
+  const input=document.getElementById('prefsInput');
+  if(input) input.value=S.localMd;
+  document.getElementById('genLocalMdBtn').disabled=!S.localMd.trim();
+  const collapsed=localStorage.getItem('csg_prefs_collapsed');
+  if(collapsed==='1'){
+    document.getElementById('prefsPanel').style.display='none';
+    document.getElementById('prefsToggle').classList.add('folded');
+  }
+  updateLocalMdCard();
+}
+
+function setFontSize(size){
+  const map={small:{chat:'14px',input:'15px'},medium:{chat:'16px',input:'17px'},large:{chat:'18px',input:'19px'}};
+  const v=map[size]||map.medium;
+  document.documentElement.style.setProperty('--chat-font',v.chat);
+  document.documentElement.style.setProperty('--input-font',v.input);
+  document.querySelectorAll('#fs-small,#fs-medium,#fs-large').forEach(b=>b.classList.remove('active'));
+  document.getElementById('fs-'+size).classList.add('active');
+  localStorage.setItem('fontSize',size);
+}
+
+function updateTopbar(){
+  const p=S.provider;
+  const model=getActiveModel();
+  const modeNames={checkpoint:'Check',full_auto:'自动',compare:'对比',manual:'手动'};
+  if(p&&model){
+    document.getElementById('topbarInfo').textContent=`${p.name} · ${modeNames[S.mode]||S.mode} 模式`;
+    const tm=document.getElementById('topbarModel');
+    tm.style.display='';
+    tm.textContent=model;
+  }
+}
+
+function setStage(n){
+  S.stage=n;
+  for(let i=0;i<=5;i++){
+    const el=document.getElementById('si-'+i);
+    el.className='si'+(i<n?' done':i===n?' active':'');
+  }
+}
+
+// ====== CHAT ======
+function addMsg(role,html,idx){
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');
+  row.className='msg-row'+(role==='human'?' user':'');
+  if(idx!==undefined) row.setAttribute('data-hidx',idx);
+  const av=document.createElement('div');
+  av.className='av '+(role==='ai'?'ai':'hu');
+  av.textContent=role==='ai'?'AI':'我';
+  const bub=document.createElement('div');
+  bub.className='bubble';
+  let contentHtml=md(html);
+  if(role==='human'&&idx!==undefined){
+    contentHtml+=`<button class="msg-retract" onclick="retractMessage(${idx})" title="撤回此消息及后续回复">撤回</button>`;
+  }
+  bub.innerHTML=contentHtml;
+  row.appendChild(av);row.appendChild(bub);
+  chat.appendChild(row);
+  chat.scrollTop=chat.scrollHeight;
+  return bub;
+}
+
+function retractMessage(idx){
+  if(S.loading) return;
+  const chat=document.getElementById('chat');
+  // 找到目标消息行，删除它及之后所有元素
+  const target=chat.querySelector(`[data-hidx="${idx}"]`);
+  if(!target) return;
+  let el=target;
+  while(el){
+    const next=el.nextSibling;
+    el.remove();
+    el=next;
+  }
+  // 截断历史
+  S.history=S.history.slice(0,idx);
+  // 重新评估阶段和文件状态
+  reevaluateState();
+  autoSaveProject();
+  addSysMsg('已撤回');
+}
+
+function reevaluateState(){
+  S.claudeMd='';S.skillMd='';S.stage=0;
+  S._pendingClaudeMd=null;S._pendingSkillMd=null;
+  S._prevClaudeMd='';S._prevSkillMd='';
+  S._justGenerated=null;
+  for(const msg of S.history){
+    if(msg.role==='assistant'){
+      const sm=msg.content.match(/\[STAGE:(\d)\]/);
+      if(sm) S.stage=Math.max(S.stage,parseInt(sm[1]));
+      const cm=msg.content.match(/```(?:markdown)?\s*\n(#\s*Project[\s\S]*)\n```(?=\s*(?:\n|\[STAGE:\d\]|[一-鿿]|\{|$))/);
+      if(cm){S._prevClaudeMd=S.claudeMd;S.claudeMd=cm[1].trim();}
+      const sm2=msg.content.match(/```(?:xml)?\s*\n(<skill[\s\S]*)\n```(?=\s*(?:\n|\[STAGE:\d\]|[一-鿿]|\{|$))/);
+      if(sm2){S._prevSkillMd=S.skillMd;S.skillMd=mergeSkill(S.skillMd,sm2[1].trim());}
+    }
+  }
+  setStage(S.stage);
+  updateFileCards();
+}
+
+// ====== FILE PERSISTENCE ======
+function saveFiles(){
+  try{
+    if(S.claudeMd) localStorage.setItem('csg_claude_md',S.claudeMd);
+    else localStorage.removeItem('csg_claude_md');
+    if(S.skillMd) localStorage.setItem('csg_skill_md',S.skillMd);
+    else localStorage.removeItem('csg_skill_md');
+    updateFileCards();
+  }catch(e){ /* localStorage 可能满了 */ }
+}
+
+function loadFiles(){
+  try{
+    S.claudeMd=localStorage.getItem('csg_claude_md')||'';
+    S.skillMd=localStorage.getItem('csg_skill_md')||'';
+  }catch(e){}
+}
+
+function updateFileCards(){
+  function updateCard(type){
+    const content=type==='claude'?S.claudeMd:S.skillMd;
+    const has=!!content;
+    const lines=has?content.split('\n').length:0;
+    const card=document.getElementById('fileCard'+(type==='claude'?'Claude':'Skill'));
+    const meta=document.getElementById('fcMeta'+(type==='claude'?'Claude':'Skill'));
+    const view=document.getElementById('fcView'+(type==='claude'?'Claude':'Skill'));
+    const copy=document.getElementById('fcCopy'+(type==='claude'?'Claude':'Skill'));
+    const dl=document.getElementById('fcDl'+(type==='claude'?'Claude':'Skill'));
+    if(card) card.className='file-card'+(has?' has-file':'');
+    if(meta){
+      if(!has){ meta.textContent='尚未生成'; meta.className='fc-meta'; }
+      else if(type==='claude'){ meta.textContent=`${lines} 行`; meta.className='fc-meta has-file'; }
+      else {
+        const names=[]; const re=/<skill\s[^>]*?name\s*=\s*"([^"]*)"/gi; let m;
+        while((m=re.exec(content))!==null) names.push(m[1]);
+        if(names.length) meta.textContent=`${names.length} 个技能: ${names.join(', ')} · ${lines} 行`;
+        else meta.textContent=`${lines} 行`;
+        meta.className='fc-meta has-file';
+      }
+    }
+    if(view) view.disabled=!has;
+    if(copy) copy.disabled=!has;
+    if(dl) dl.disabled=!has;
+  }
+  updateCard('claude');
+  updateCard('skill');
+  document.getElementById('outExport').disabled=!(S.claudeMd||S.skillMd);
+  updateSkillCards();
+}
+
+// 解析并渲染各 Skill 独立卡片
+function updateSkillCards(){
+  const container = document.getElementById('skillCards');
+  if(!container) return;
+  if(!S.skillMd){ container.innerHTML=''; return; }
+  const skills = [];
+  const re = /<skill>[\s\S]*?<\/skill>/gi;
+  let m;
+  while((m = re.exec(S.skillMd)) !== null){
+    const xml = m[0];
+    const name = (xml.match(/<name>([^<]*)<\/name>/i)||[])[1]||'未知';
+    const desc = (xml.match(/<description>([^<]*)<\/description>/i)||[])[1]||'';
+    skills.push({name, desc, xml});
+  }
+  if(skills.length === 0){ container.innerHTML=''; return; }
+  container._skills = skills;
+  container.innerHTML = skills.map((sk, i) => `
+    <div class="file-card has-file" style="margin-top:4px;border-left:2px solid var(--accent);padding:6px 8px">
+      <div class="fc-top"><span class="fc-icon">⚡</span><span class="fc-name" style="font-size:10px" title="${esc(sk.desc)}">${esc(sk.name)}</span></div>
+      <div class="fc-acts" style="gap:2px">
+        <button class="fc-btn" style="font-size:9px;padding:2px 6px" onclick="viewSkillXml('skill_${i}')">查看</button>
+        <button class="fc-btn" style="font-size:9px;padding:2px 6px" onclick="dlSkillXml('skill_${i}')">下载</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function viewSkillXml(key){
+  const container = document.getElementById('skillCards');
+  if(!container||!container._skills) return;
+  const idx = parseInt(key.split('_')[1]);
+  const sk = container._skills[idx];
+  if(!sk) return;
+  const modal = document.createElement('div');
+  modal.className = 'mo';
+  modal.innerHTML = `<div class="mb" style="max-width:700px">
+    <div class="mh">
+      <div class="mt">⚡ ${esc(sk.name)}</div>
+      <button class="mc-btn" onclick="this.closest('.mo').remove()">×</button>
+    </div>
+    <div class="mc" style="font-size:11px;max-height:60vh;overflow-y:auto">${esc(sk.xml)}</div>
+    <div class="mf">
+      <button class="m-btn" onclick="navigator.clipboard.writeText(this.closest('.mb').querySelector('.mc').textContent);this.textContent='已复制'" style="font-size:10px">复制</button>
+      <button class="m-btn pri" onclick="dlSkillXml('${key}');this.closest('.mo').remove()" style="font-size:10px">下载</button>
+    </div></div>`;
+  document.body.appendChild(modal);
+}
+
+function dlSkillXml(key){
+  const container = document.getElementById('skillCards');
+  if(!container||!container._skills) return;
+  const idx = parseInt(key.split('_')[1]);
+  const sk = container._skills[idx];
+  if(!sk) return;
+  const fn = sk.name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '-') + '.skill.md';
+  if(S._dirHandle){
+    writeFileToDir(fn, sk.xml).then(ok => {
+      if(ok) addSysMsg(`已写入：${getProjectName()}/${fn}`);
+      else fallbackDownload(fn, sk.xml);
+    });
+  } else {
+    const a = document.createElement('a');
+    a.href = 'data:text/xml;charset=utf-8,' + encodeURIComponent(sk.xml);
+    a.download = fn; a.click();
+  }
+}
+
+// ====== PROJECT MANAGEMENT ======
+const PROJ_KEY='csg_projects', ACTIVE_PROJ_KEY='csg_active_project';
+function getProjects(){try{return JSON.parse(localStorage.getItem(PROJ_KEY)||'[]');}catch(e){return[];}}
+function saveProjects(arr){try{localStorage.setItem(PROJ_KEY,JSON.stringify(arr));}catch(e){}}
+function getActiveProjId(){return localStorage.getItem(ACTIVE_PROJ_KEY)||'';}
+function setActiveProjId(id){localStorage.setItem(ACTIVE_PROJ_KEY,id);}
+
+function autoSaveProject(){
+  const activeId=getActiveProjId();
+  if(!activeId) return;
+  const projects=getProjects();
+  const idx=projects.findIndex(p=>p.id===activeId);
+  const proj={
+    id:activeId,
+    name:idx>=0?projects[idx].name:'默认项目',
+    history:S.history.slice(),claudeMd:S.claudeMd,skillMd:S.skillMd,
+    stage:S.stage,mode:S.mode,
+    providerId:S.provider?S.provider.id:null,
+    updatedAt:Date.now()
+  };
+  if(idx>=0) projects[idx]=proj; else projects.push(proj);
+  saveProjects(projects);
+  document.getElementById('projName').textContent=proj.name;
+}
+
+function loadProject(id){
+  autoSaveProject();
+  const projects=getProjects();
+  const proj=projects.find(p=>p.id===id);
+  if(!proj) return;
+  // 恢复状态
+  S.history=proj.history||[];S.claudeMd=proj.claudeMd||'';S.skillMd=proj.skillMd||'';
+  S.stage=proj.stage||0;S.mode=proj.mode||'full_auto';
+  S._prevClaudeMd='';S._prevSkillMd='';S._pendingClaudeMd=null;S._pendingSkillMd=null;
+  if(proj.providerId){
+    const p=PROVIDERS.find(p=>p.id===proj.providerId);
+    if(p) selectProvider(p.id);
+  }
+  setActiveProjId(id);
+  document.getElementById('projName').textContent=proj.name;
+  setMode(S.mode);setStage(S.stage);
+  updateFileCards();
+  // 重建聊天
+  const chat=document.getElementById('chat');chat.innerHTML='';
+  S.history.forEach((msg,i)=>{
+    if(msg.role==='user'){addMsg('human',msg.content,i);}
+    else{
+      let display=msg.content.replace(/\[STAGE:\d\]/g,'')
+        .replace(/```(?:markdown|xml|bash)?[\s\S]*?```/g,cb=>{
+          const inner=cb.replace(/```(?:markdown|xml|bash)?/,'').replace(/```$/,'').trim();
+          if(inner.startsWith('#\x20Project')) return '[📄 CLAUDE.md 已生成]';
+          if(inner.startsWith('<skill')) return '[🔧 SKILL.md 已生成]';
+          return `<pre>${esc(inner)}</pre>`;
+        }).replace(/^\{[^{}\n]*"patch_id"[^{}\n]*\}$/gm,'').trim();
+      addMsg('ai',display||'（文件已生成）',i);
+    }
+  });
+  addSysMsg(`已切换到项目「${proj.name}」（${S.history.length} 条消息，${S.claudeMd?'CLAUDE.md ':''}${S.skillMd?'SKILL.md':''}${!S.claudeMd&&!S.skillMd?'无文件':''}）`);
+}
+
+function newProject(){
+  const name=prompt('请输入新项目名称：');
+  if(!name||!name.trim()) return;
+  autoSaveProject();
+  const id='proj_'+Date.now();
+  const projects=getProjects();
+  projects.push({id,name:name.trim(),history:[],claudeMd:'',skillMd:'',stage:0,mode:'checkpoint',providerId:null,updatedAt:Date.now()});
+  saveProjects(projects);
+  resetAll();setActiveProjId(id);
+  document.getElementById('projName').textContent=name.trim();
+  addSysMsg(`已创建并切换到项目「${name.trim()}」`);
+}
+
+function showProjectList(){
+  const projects=getProjects();
+  const activeId=getActiveProjId();
+  if(projects.length===0){alert('暂无其他项目');return;}
+  let html='';
+  projects.sort((a,b)=>b.updatedAt-a.updatedAt).forEach(p=>{
+    const isActive=p.id===activeId;
+    const d=new Date(p.updatedAt);
+    const ds=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const hasFiles=(p.claudeMd?'C':'')+(p.skillMd?' S':'');
+    html+=`<div style="display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:7px;margin-bottom:3px;${isActive?'background:rgba(124,106,247,0.1);border:1px solid rgba(124,106,247,0.25)':'border:1px solid transparent'}">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:var(--text);${isActive?'font-weight:600':''}">${esc(p.name)}${isActive?' <span style="font-size:9px;color:var(--accent)">当前</span>':''}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:1px">${ds} · ${p.history.length}条消息${hasFiles?' · '+hasFiles:''}</div>
+      </div>
+      ${!isActive?`<button onclick="(()=>{const mo=document.querySelector('.mo');mo.remove();setTimeout(()=>loadProject('${p.id}'),50);})()" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--text2)">切换</button>`:''}
+      <button onclick="if(confirm('确定删除项目「${esc(p.name)}」？此操作不可恢复。')){deleteProject('${p.id}');document.querySelector('.mo').remove();}" style="padding:3px 6px;border-radius:5px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--text3)" title="删除">🗑</button>
+    </div>`;
+  });
+  const overlay=document.createElement('div');overlay.className='mo';
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  overlay.innerHTML=`<div class="mb" style="width:420px">
+    <div class="mh"><div class="mt">项目管理</div><button class="mc-btn" onclick="this.closest('.mo').remove()">×</button></div>
+    <div class="mc" style="max-height:360px">${html||'<div style="color:var(--text3);text-align:center;padding:20px">暂无项目</div>'}</div>
+    <div class="mf"><button class="m-btn pri" onclick="newProject();document.querySelector('.mo').remove();">+ 新建项目</button><button class="m-btn" onclick="this.closest('.mo').remove()">关闭</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+function deleteProject(id){
+  let projects=getProjects();
+  projects=projects.filter(p=>p.id!==id);
+  saveProjects(projects);
+  if(getActiveProjId()===id){
+    // 如果删除的是当前项目，切换到最近的项目
+    if(projects.length>0){
+      loadProject(projects[projects.length-1].id);
+    } else {
+      // 没有项目了，创建默认项目
+      const defId='proj_'+Date.now();
+      projects=[{id:defId,name:'默认项目',history:[],claudeMd:'',skillMd:'',stage:0,mode:'checkpoint',providerId:null,updatedAt:Date.now()}];
+      saveProjects(projects);
+      resetAll();setActiveProjId(defId);
+      document.getElementById('projName').textContent='默认项目';
+    }
+  }
+}
+
+function initProject(){
+  // 迁移旧数据：如果项目列表为空但旧格式文件存在，迁移到默认项目
+  let projects=getProjects();
+  const oldClaude=localStorage.getItem('csg_claude_md');
+  const oldSkill=localStorage.getItem('csg_skill_md');
+  if(projects.length===0&&(oldClaude||oldSkill)){
+    const id='proj_'+Date.now();
+    projects.push({id,name:'默认项目',history:[],claudeMd:oldClaude||'',skillMd:oldSkill||'',stage:0,mode:'checkpoint',providerId:null,updatedAt:Date.now()});
+    saveProjects(projects);
+    setActiveProjId(id);
+    localStorage.removeItem('csg_claude_md');localStorage.removeItem('csg_skill_md');
+    projects=getProjects(); // 刷新
+  }
+  let activeId=getActiveProjId();
+  // 如果没有活跃项目或项目不存在，创建默认项目
+  if(!activeId||!projects.find(p=>p.id===activeId)){
+    if(projects.length>0){
+      activeId=projects[projects.length-1].id;
+    } else {
+      activeId='proj_'+Date.now();
+      projects.push({id:activeId,name:'默认项目',history:[],claudeMd:'',skillMd:'',stage:0,mode:'checkpoint',providerId:null,updatedAt:Date.now()});
+      saveProjects(projects);
+    }
+    setActiveProjId(activeId);
+  }
+  const proj=projects.find(p=>p.id===activeId);
+  if(proj){
+    document.getElementById('projName').textContent=proj.name;
+    // 恢复上次项目的文件和模式（但不重建聊天，因为欢迎消息更友好）
+    S.claudeMd=proj.claudeMd||'';S.skillMd=proj.skillMd||'';S.mode=proj.mode||'checkpoint';S.stage=proj.stage||0;
+    S.history=proj.history||[];
+    setMode(S.mode);setStage(S.stage);
+    if(proj.providerId){
+      const p=PROVIDERS.find(p=>p.id===proj.providerId);
+      if(p){
+        S.provider=p;
+        const saved=S.apiKeys[p.id]||'';
+        document.getElementById('apiKeyInput').value=saved;
+        document.getElementById('apiStatus').className='api-status '+(saved?'ok':'none');
+        document.getElementById('apiStatus').textContent=saved?'· 已保存':'· 未配置';
+        document.getElementById('baseUrlRow').style.display=(p.id==='custom')?'block':'none';
+        buildModelSelect();
+        document.getElementById('modelSec').style.display='block';
+        updateTopbar();refreshProviderGrid();
+      }
+    }
+    updateFileCards();
+  }
+}
+
+function addSysMsg(text){
+  const chat=document.getElementById('chat');
+  const el=document.createElement('div');
+  el.className='sys-msg';el.textContent=text;
+  chat.appendChild(el);chat.scrollTop=chat.scrollHeight;
+}
+
+function showTyping(){
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg-row';row.id='typing';
+  const av=document.createElement('div');av.className='av ai';av.textContent='AI';
+  const bub=document.createElement('div');bub.className='bubble';
+  bub.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
+  row.appendChild(av);row.appendChild(bub);chat.appendChild(row);
+  chat.scrollTop=chat.scrollHeight;
+}
+function removeTyping(){document.getElementById('typing')?.remove();}
+
+function md(t){
+  return String(t)
+    .replace(/&(?!amp;|lt;|gt;)/g,'&amp;')
+    .replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ====== FILE UPLOAD ======
+function handleFileUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 2*1024*1024){ addSysMsg('⚠ 文件超过 2MB，请上传更小的文件'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const text = e.target.result;
+    const inp = document.getElementById('inp');
+    const current = inp.value.trim();
+    // 如果输入框已有内容，追加到后面；否则直接填入
+    inp.value = current ? current + '\n\n---\n' + file.name + '\n---\n' + text : text;
+    autoResize(inp);
+    addSysMsg(`📎 已加载文件：${file.name}（${(file.size/1024).toFixed(1)} KB）`);
+  };
+  reader.onerror = function(){ addSysMsg('⚠ 文件读取失败'); };
+  reader.readAsText(file);
+  // 重置 file input，允许重复上传同一文件
+  event.target.value = '';
+}
+
+// ====== SEND ======
+function handleKey(e){if(e.key==='Enter'&&(e.shiftKey||e.ctrlKey||e.metaKey)){e.preventDefault();sendMessage();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,130)+'px';}
+
+async function sendMessage(){
+  if(!S.provider){alert('请先选择 AI 提供商');return;}
+  const key=S.apiKeys[S.provider.id];
+  if(!key){alert('请配置并保存 API Key');return;}
+  const model=getActiveModel();
+  if(!model){alert('请选择或输入模型');return;}
+
+  const inp=document.getElementById('inp');
+  const text=inp.value.trim();
+  if(!text||S.loading) return;
+  inp.value='';inp.style.height='auto';
+  const userIdx=S.history.length;
+  addMsg('human',text,userIdx);
+  S.history.push({role:'user',content:text});
+
+  S.loading=true;document.getElementById('sendBtn').disabled=true;showTyping();
+
+  try{
+    const p=S.provider;
+    let sys=S.systemPrompt+`\n\n当前自动化模式：${S.mode}。当前所处阶段：${S.stage}`;
+    // 注入用户个人偏好
+    if(S.localMd && S.localMd.trim()){
+      sys+=`\n\n=== 用户个人偏好（将写入 CLAUDE.local.md） ===\n${S.localMd}\n生成 CLAUDE.md 时请参考以上偏好调整指令风格。`;
+    }
+    // 注入学习调整（基于历史反馈）
+    const learningAdj = getLearningAdjustments(p.id, model);
+    if(learningAdj) sys += learningAdj;
+    // 注入提供商差异补偿（promptPatch）
+    if(p.promptPatch) sys += p.promptPatch;
+    // 后续阶段附加上下文，确保 AI 基于已生成内容工作
+    if(S.claudeMd){
+      sys+=`\n\n=== 已生成的 CLAUDE.md（后续阶段需严格基于此内容工作） ===\n${S.claudeMd}`;
+    }
+    if(S.skillMd){
+      sys+=`\n\n=== 已生成的 SKILL.md ===\n${S.skillMd}`;
+    }
+    let body=p.buildBody(S.history,sys,model,key);
+    let url=p.customUrl&&body._url?body._url:p.baseUrl;
+    if(body._url) delete body._url;
+    if(p.id==='custom'){
+      const cu=document.getElementById('baseUrlInput').value.trim();
+      if(cu) url=cu;
+    }
+
+    const res=await fetch(url,{method:'POST',headers:p.headers(key),body:JSON.stringify(body)});
+    if(!res.ok){const err=await res.text();throw new Error(httpErrorMsg(res.status, err));}
+    const data=await res.json();
+    const reply=p.parseReply(data);
+    if(!reply) throw new Error('空回复，请检查 Key / 模型 / 余额');
+    // 提供商差异补偿：预处理回复（去除多余段落、补漏 [STAGE:N] 等）
+    const cleanReply = p.preprocessReply ? p.preprocessReply(reply) : reply;
+    S.history.push({role:'assistant',content:cleanReply});
+    removeTyping();renderReply(cleanReply,S.history.length-1);
+    autoSaveProject();
+  }catch(e){
+    removeTyping();
+    addMsg('ai',`⚠️ 请求失败：${e.message}\n\n检查：Key 是否正确、模型是否存在、账户是否有余额、网络是否可访问该服务。`);
+    autoSaveProject();
+  }
+  S.loading=false;document.getElementById('sendBtn').disabled=false;
+}
+
+// 合并 skill XML：同名则替换，否则追加
+function mergeSkill(existing, newXml){
+  const nameMatch = newXml.match(/<name>([^<]*)<\/name>/);
+  if(!nameMatch) return existing ? existing + '\n\n' + newXml : newXml;
+  const skillName = nameMatch[1];
+  if(!existing) return newXml;
+  const escaped = skillName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`<skill>[\\s\\S]*?<name>${escaped}</name>[\\s\\S]*?</skill>`, 'i');
+  if(re.test(existing)) return existing.replace(re, newXml);
+  return existing + '\n\n' + newXml;
+}
+
+// ====== FEEDBACK & LEARNING SYSTEM ======
+function getFeedback(){
+  try{ return JSON.parse(localStorage.getItem('csg_feedback')||'[]'); }catch(e){ return []; }
+}
+
+function saveFeedbackEntry(entry){
+  const all = getFeedback();
+  // 检测重建：同一项目同一文件类型之前的生成记录标记为"被重建"
+  const sameType = all.filter(f =>
+    f.project_id === entry.project_id &&
+    f.type === entry.type &&
+    !f.regenerated
+  );
+  if(sameType.length > 0){
+    sameType[sameType.length-1].regenerated = true;
+    sameType[sameType.length-1].regenerated_at = Date.now();
+  }
+  all.push(entry);
+  try{ localStorage.setItem('csg_feedback', JSON.stringify(all)); }catch(e){}
+  // 更新学习统计展示
+  updateLearningStats(entry.provider, entry.model);
+  return all.length;
+}
+
+function getFeedbackStats(provider, model){
+  const all = getFeedback().filter(f => f.provider === provider && f.model === model);
+  const total = all.length;
+  const rated = all.filter(f => f.rating > 0);
+  const avgRating = rated.length > 0 ? (rated.reduce((s,f) => s+f.rating, 0) / rated.length).toFixed(1) : 'N/A';
+  const regenerated = all.filter(f => f.regenerated).length;
+  const byType = {};
+  all.forEach(f => {
+    if(!byType[f.type]) byType[f.type] = {total:0, ratings:[], regenerated:0};
+    byType[f.type].total++;
+    if(f.rating > 0) byType[f.type].ratings.push(f.rating);
+    if(f.regenerated) byType[f.type].regenerated++;
+  });
+  // 常见原因关键词统计
+  const keywords = {};
+  all.filter(f => f.reason).forEach(f => {
+    f.reason.toLowerCase().split(/[\s,，、。]+/).filter(w => w.length >= 2).forEach(w => {
+      keywords[w] = (keywords[w]||0) + 1;
+    });
+  });
+  const topKeywords = Object.entries(keywords).sort((a,b) => b[1]-a[1]).slice(0,10);
+  return {total, rated: rated.length, avgRating, regenerated, byType, topKeywords};
+}
+
+function getLearningAdjustments(provider, model){
+  const stats = getFeedbackStats(provider, model);
+  if(stats.total < 20) return ''; // 不足20条，不调整
+  let adj = '\n\n=== 学习调整（基于历史反馈自动追加） ===\n';
+  adj += `已积累 ${stats.total} 条反馈，平均评分：${stats.avgRating}/5\n`;
+
+  // 高重建率 →提示增加确认环节
+  const claudeStats = stats.byType['claude'];
+  const skillStats = stats.byType['skill'];
+  if(claudeStats && claudeStats.regenerated/claudeStats.total > 0.3){
+    adj += '- CLAUDE.md 重建率高（>30%），建议在阶段3增加更多细节确认\n';
+  }
+  if(skillStats && skillStats.regenerated/skillStats.total > 0.3){
+    adj += '- SKILL.md 重建率高（>30%），建议在阶段4触发条件部分更加审慎\n';
+  }
+
+  // 低评分 →提示侧重方向
+  if(stats.rated > 5 && parseFloat(stats.avgRating) < 3.5){
+    adj += '- 整体评分偏低（<3.5），建议生成时更注重具体性、减少泛泛填充\n';
+  }
+
+  // 高频反馈关键词
+  if(stats.topKeywords.length > 0){
+    const relevant = stats.topKeywords.filter(([w]) =>
+      ['太宽泛','不具体','不准确','太长','太短','缺少','重复','冲突','模糊','不清楚'].includes(w)
+    );
+    if(relevant.length > 0){
+      adj += `- 常见问题关键词：${relevant.map(([w,c]) => `"${w}"(${c}次)`).join('、')}\n`;
+    }
+  }
+
+  adj += '以上调整基于当前模型和项目类型的反馈数据，请结合本次生成场景自行判断。\n';
+  return adj;
+}
+
+function showFeedbackModal(type){
+  const p = S.provider;
+  const model = getActiveModel();
+  const provider = p ? p.id : 'unknown';
+  const overlay = document.createElement('div');
+  overlay.className = 'mo';
+  overlay.id = 'feedbackModal';
+  overlay.onclick = e => { if(e.target === overlay) overlay.remove(); };
+
+  let starsHtml = '';
+  for(let i=1; i<=5; i++){
+    starsHtml += `<span class="star" data-v="${i}" onmouseover="highlightStars(${i})" onmouseout="resetStars()" onclick="setStarRating(${i})">★</span>`;
+  }
+
+  overlay.innerHTML = `<div class="mb" style="width:420px">
+    <div class="mh">
+      <div class="mt">📊 质量评分（可选）</div>
+      <button class="mc-btn" onclick="document.getElementById('feedbackModal').remove()">×</button>
+    </div>
+    <div class="mc" style="white-space:normal;font-family:var(--sans);font-size:12px;line-height:1.8">
+      <div style="color:var(--text2);margin-bottom:6px">刚下载了 <b>${esc(type==='claude'?'CLAUDE.md':'SKILL.md')}</b>，觉得质量如何？</div>
+      <div style="font-size:10px;color:var(--text3)">反馈帮助生成器在同类项目上越做越好</div>
+      <div class="star-rating" id="starRating">${starsHtml}</div>
+      <div class="rating-score" id="ratingScore"></div>
+      <textarea class="feedback-reason" id="feedbackReason" placeholder="哪些地方好、哪些不好？（选填）"></textarea>
+    </div>
+    <div class="mf">
+      <button class="m-btn pri" id="feedbackSubmit" onclick="submitFeedback('${type}','${provider}','${model}')" disabled>提交评分</button>
+      <button class="m-btn" onclick="document.getElementById('feedbackModal').remove()">跳过</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  // 临时状态
+  window._feedbackRating = 0;
+  window.highlightStars = function(n){
+    const stars = document.querySelectorAll('#starRating .star');
+    stars.forEach((s,i) => { s.classList.toggle('active', i < n); });
+  };
+  window.resetStars = function(){
+    const stars = document.querySelectorAll('#starRating .star');
+    stars.forEach((s,i) => { s.classList.toggle('active', i < window._feedbackRating); });
+  };
+  window.setStarRating = function(n){
+    window._feedbackRating = n;
+    resetStars();
+    document.getElementById('ratingScore').textContent = `${n} / 5 分`;
+    document.getElementById('feedbackSubmit').disabled = false;
+  };
+}
+
+window.submitFeedback = function(type, provider, model){
+  const rating = window._feedbackRating;
+  const reason = document.getElementById('feedbackReason')?.value?.trim() || '';
+  if(rating <= 0) return;
+
+  const projId = getActiveProjId();
+  const proj = getProjects().find(p => p.id === projId);
+  const entry = {
+    id: 'fb_' + Date.now(),
+    type: type,           // 'claude' | 'skill'
+    provider: provider,
+    model: model,
+    project_id: projId,
+    project_name: proj ? proj.name : '未知',
+    rating: rating,
+    reason: reason,
+    regenerated: false,
+    timestamp: Date.now()
+  };
+  const total = saveFeedbackEntry(entry);
+  const modal = document.getElementById('feedbackModal');
+  if(modal) modal.remove();
+  addSysMsg(`📊 感谢反馈！已积累 ${total} 条评价${total >= 20 ? '（学习机制已激活）' : ''}`);
+  delete window._feedbackRating;
+  delete window.highlightStars;
+  delete window.resetStars;
+  delete window.setStarRating;
+};
+
+function updateLearningStats(provider, model){
+  const stats = getFeedbackStats(provider, model);
+  if(stats.total < 20) return; // 不足20条不显示
+  const el = document.getElementById('learningStats');
+  if(!el){
+    const outSec = document.querySelector('.out-sec');
+    const div = document.createElement('div');
+    div.id = 'learningStats';
+    div.className = 'learning-stats';
+    outSec.insertBefore(div, outSec.firstChild);
+  }
+  const d = document.getElementById('learningStats');
+  if(d){
+    d.innerHTML = `🧠 学习数据：${stats.total}条 · 均分${stats.avgRating} · 重建率${stats.regenerated>0?(stats.regenerated/stats.total*100).toFixed(0)+'%':'0%'}`;
+    d.title = `已评分${stats.rated}条，来自${provider}/${model}`;
+  }
+}
+
+function initLearningStats(){
+  const p = S.provider;
+  const model = getActiveModel();
+  if(p && model) updateLearningStats(p.id, model);
+}
+
+// ====== SKILL 触发验证清单 ======
+function generateSkillChecklist(skillMd){
+  if(!skillMd) return null;
+  const skills = [];
+  const re = /<skill>[\s\S]*?<\/skill>/gi;
+  let m;
+  while((m = re.exec(skillMd)) !== null){
+    const xml = m[0];
+    const name = (xml.match(/<name>([^<]*)<\/name>/i)||[])[1]||'未知';
+    const desc = (xml.match(/<description>([^<]*)<\/description>/i)||[])[1]||'';
+    const triggers = []; const triggerRe = /<trigger>([^<]*)<\/trigger>/gi; let tm;
+    while((tm = triggerRe.exec(xml)) !== null) triggers.push(tm[1]);
+    const antiTriggers = []; const atRe = /<anti-trigger>([^<]*)<\/anti-trigger>/gi; let am;
+    while((am = atRe.exec(xml)) !== null) antiTriggers.push(am[1]);
+    skills.push({name, desc, triggers, antiTriggers});
+  }
+  if(skills.length === 0) return null;
+
+  const issues = [];
+  // 检查每个 skill
+  skills.forEach((sk, idx) => {
+    const prefix = `[${sk.name}]`;
+
+    // 1. 触发条件是否足够具体
+    const broadPatterns = [/文件操作/, /代码/, /项目/, /开发/, /涉及.*时/, /需要.*时/, /用户.*时/];
+    sk.triggers.forEach(t => {
+      broadPatterns.forEach(bp => {
+        if(bp.test(t) && t.length < 20){
+          issues.push({severity:'高', skill:sk.name, check:'触发条件具体性', detail:`"${t}" 太宽泛，可能被所有任务触发。建议加入具体关键词或操作描述`});
+        }
+      });
+    });
+    if(sk.triggers.length === 0){
+      issues.push({severity:'高', skill:sk.name, check:'触发条件缺失', detail:'没有任何触发条件，skill 永远不会被调用'});
+    }
+
+    // 2. 反触发条件是否明确（至少2个）
+    if(sk.antiTriggers.length === 0){
+      issues.push({severity:'高', skill:sk.name, check:'反触发条件缺失', detail:'没有反触发条件。建议至少补充2个"不用此skill"的场景'});
+    } else if(sk.antiTriggers.length < 2){
+      issues.push({severity:'中', skill:sk.name, check:'反触发条件不足', detail:`仅有${sk.antiTriggers.length}个反触发条件，建议至少2个`});
+    }
+
+    // 3. 反触发是否和触发矛盾
+    if(sk.triggers.length > 0 && sk.antiTriggers.length > 0){
+      sk.antiTriggers.forEach(at => {
+        sk.triggers.forEach(t => {
+          if(at.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(at.toLowerCase())){
+            issues.push({severity:'高', skill:sk.name, check:'触发/反触发矛盾', detail:`触发"${t}" 与反触发"${at}" 可能互相矛盾`});
+          }
+        });
+      });
+    }
+  });
+
+  // 4. 跨 skill 触发条件重叠
+  for(let i=0; i<skills.length; i++){
+    for(let j=i+1; j<skills.length; j++){
+      const si = skills[i], sj = skills[j];
+      si.triggers.forEach(ti => {
+        sj.triggers.forEach(tj => {
+          const overlap = ti.toLowerCase().includes(tj.toLowerCase()) || tj.toLowerCase().includes(ti.toLowerCase());
+          if(overlap && ti.length > 5 && tj.length > 5){
+            issues.push({severity:'中', skill:`${si.name} ⇄ ${sj.name}`, check:'触发条件重叠', detail:`"${ti}" 与 "${tj}" 可能重叠，AI 不知道该调用哪个 skill`});
+          }
+        });
+      });
+    }
+  }
+
+  // 5. 检查是否有内置行为冲突的关键词
+  const builtinKeywords = ['claude.md', 'claude code', 'settings.json', 'keybindings', '/compact', '/clear'];
+  skills.forEach(sk => {
+    sk.triggers.forEach(t => {
+      builtinKeywords.forEach(bk => {
+        if(t.toLowerCase().includes(bk.toLowerCase())){
+          issues.push({severity:'低', skill:sk.name, check:'内置行为重叠', detail:`触发条件包含 "${bk}"，可能与 Claude Code 默认行为冲突`});
+        }
+      });
+    });
+  });
+
+  return {skills: skills.map(s => s.name), totalSkills: skills.length, issues};
+}
+
+// ====== 生成后自检 ======
+function generateSelfCheck(claudeMd, skillMd){
+  const issues = [];
+
+  // 1. CLAUDE.md 约束冲突检测
+  const modeMatch = claudeMd.match(/MODE:\s*(\w+)/);
+  const mode = modeMatch ? modeMatch[1] : '';
+  const interventionSection = claudeMd.match(/INTERVENTION_POINTS:([\s\S]*?)(?=\n##|\n#|$)/);
+  const interventions = interventionSection ? (interventionSection[1].match(/- \[[ x]\]/g)||[]) : [];
+
+  // full_auto 模式但有过多干预节点
+  if(mode === 'full_auto' && interventions.length > 3){
+    issues.push({severity:'中', file:'CLAUDE.md', check:'模式与干预节点不匹配', detail:`MODE 设为 full_auto 但有 ${interventions.length} 个干预节点，全自动模式通常只需0-2个`});
+  }
+  // manual 模式但没有干预节点
+  if(mode === 'manual' && interventions.length === 0){
+    issues.push({severity:'低', file:'CLAUDE.md', check:'干预节点缺失', detail:'manual 模式下建议至少列出1个干预节点说明何时介入'});
+  }
+
+  // 2. [待确认] 字段检测
+  const pendingMatches = claudeMd.match(/\[待确认\]/g);
+  if(pendingMatches && pendingMatches.length > 0){
+    issues.push({severity:'高', file:'CLAUDE.md', check:'存在未确认字段', detail:`${pendingMatches.length} 处 [待确认] 标记，建议确认后再导出使用`});
+  }
+
+  // 3. Tech Stack 章节完整性
+  if(!/## Tech Stack/.test(claudeMd)){
+    issues.push({severity:'中', file:'CLAUDE.md', check:'Tech Stack 章节缺失', detail:'建议补充技术栈信息，方便后续协作时 AI 了解项目环境'});
+  } else {
+    const tsSection = claudeMd.match(/## Tech Stack([\s\S]*?)(?=\n##|\n#|$)/);
+    if(tsSection && tsSection[1].trim().length < 15){
+      issues.push({severity:'低', file:'CLAUDE.md', check:'Tech Stack 内容过简', detail:'技术栈描述太简略，建议至少列出语言、框架、部署方式'});
+    }
+  }
+
+  // 4. Commands 章节完整性
+  if(!/## Commands/.test(claudeMd)){
+    issues.push({severity:'中', file:'CLAUDE.md', check:'Commands 章节缺失', detail:'缺少常用命令，skill 将无法引用具体操作'});
+  }
+
+  // 5. 跨文件一致性：SKILL.md 引用的 CLAUDE.md 章节
+  const refRegex = /<claude-md-section>([^<]*)<\/claude-md-section>/gi;
+  let rm;
+  while((rm = refRegex.exec(skillMd)) !== null){
+    const ref = rm[1].trim();
+    if(ref && !claudeMd.includes(ref)){
+      issues.push({severity:'中', file:'SKILL.md', check:'引用章节不存在', detail:`引用了 CLAUDE.md 的"${ref}"，但该章节在 CLAUDE.md 中不存在`});
+    }
+  }
+
+  // 6. SKILL.md 与 CLAUDE.md 中的命令对应
+  const cmdSection = claudeMd.match(/## Commands([\s\S]*?)(?=\n##|\n#|$)/);
+  if(cmdSection){
+    const commands = cmdSection[1].match(/`([^`]+)`/g)||[];
+    const skillMentions = commands.filter(cmd => skillMd.includes(cmd.replace(/`/g,'')));
+    if(commands.length > 0 && skillMentions.length === 0){
+      issues.push({severity:'低', file:'SKILL.md', check:'命令未复用', detail:`CLAUDE.md 定义了 ${commands.length} 条命令，但 SKILL.md 未引用任何一条`});
+    }
+  }
+
+  // 7. User Profile 章节检查（新增关键章节）
+  if(!/## User Profile/.test(claudeMd)){
+    issues.push({severity:'高', file:'CLAUDE.md', check:'User Profile 章节缺失', detail:'缺少用户画像，Claude Code 无法知道用户的水平、偏好和痛点，这是最重要的上下文'});
+  } else {
+    const upSection = claudeMd.match(/## User Profile[\s\S]*?(?=\n##|\n#|$)/);
+    if(upSection && upSection[0].length < 60){
+      issues.push({severity:'中', file:'CLAUDE.md', check:'User Profile 内容过简', detail:'用户画像太简略，建议至少包含技术水平、沟通偏好、AI 协作痛点'});
+    }
+  }
+
+  // 8. AI 协作禁忌章节检查（新增关键章节）
+  if(!/## AI 协作禁忌/.test(claudeMd)){
+    issues.push({severity:'中', file:'CLAUDE.md', check:'AI 协作禁忌 章节缺失', detail:'缺少 AI 行为边界定义，Claude Code 可能做出不符合用户期望的操作'});
+  }
+
+  // 9. Overview 与 SKILL 的一致性
+  const overview = claudeMd.match(/## Overview\n([^\n]+)/);
+  const skillCount = (skillMd.match(/<skill>/gi)||[]).length;
+  if(overview && skillCount === 0){
+    issues.push({severity:'低', file:'SKILL.md', check:'未提取 skill', detail:'CLAUDE.md 有项目描述但未提取任何 skill，确认项目中真的没有可自动化的操作吗？'});
+  }
+
+  // 10. CLAUDE.md 文件大小检查（新增：memory 文档建议≤200行）
+  const claudeLines = claudeMd.split('\n').length;
+  if(claudeLines > 300){
+    issues.push({severity:'高', file:'CLAUDE.md', check:'文件过大', detail:`${claudeLines} 行，远超 200 行建议。强烈建议拆分为 .claude/rules/ 路径作用域规则文件`});
+  } else if(claudeLines > 200){
+    issues.push({severity:'中', file:'CLAUDE.md', check:'文件偏大', detail:`${claudeLines} 行，超过 200 行建议。考虑将部分内容拆分为 .claude/rules/ 模块`});
+  }
+
+  // 11. @import 使用建议（新增）
+  if(!/^@\S/.test(claudeMd.trim()) && claudeLines > 40){
+    issues.push({severity:'低', file:'CLAUDE.md', check:'未使用 @import', detail:'如果项目有 README.md 或 package.json，可用 @README.md 导入避免重复'});
+  }
+
+  // 12. 运行架构章节检查（新增：双模型用户关键信息）
+  if(!/## 运行架构/.test(claudeMd)){
+    issues.push({severity:'低', file:'CLAUDE.md', check:'运行架构 章节缺失', detail:'如果使用 Claude Code + 其他模型的组合架构，建议写明以帮助 AI 调整输出风格'});
+  }
+
+  // 13. .claude/rules/ 拆分建议（新增）
+  const sectionCount = (claudeMd.match(/^## /gm)||[]).length;
+  if(sectionCount >= 10 && claudeLines > 150){
+    issues.push({severity:'中', file:'CLAUDE.md', check:'建议拆分为 rules', detail:`${sectionCount} 个章节，建议将部分内容移入 .claude/rules/ 目录按路径作用域管理`});
+  }
+
+  // 14. CLAUDE.local.md 提醒（新增）
+  if(!/CLAUDE\.local\.md/.test(claudeMd)){
+    issues.push({severity:'低', file:'CLAUDE.md', check:'未提及 CLAUDE.local.md', detail:'建议在文件中提醒用户可创建 CLAUDE.local.md（gitignored）存放个人偏好，如本地测试数据、sandbox URL 等'});
+  }
+
+  return {totalChecks: 14, issues};
+}
+
+function renderSelfCheck(selfCheck, container){
+  const {issues} = selfCheck;
+  const highIssues = issues.filter(i => i.severity === '高');
+  const medIssues = issues.filter(i => i.severity === '中');
+
+  const card = document.createElement('div');
+  card.className = 'patch-card';
+  card.id = 'selfCheck';
+  card.style.marginTop = '9px';
+  card.style.borderColor = highIssues.length > 0 ? 'rgba(248,113,113,0.5)' : 'var(--border2)';
+
+  let issuesHtml = issues.map(iss => {
+    const sevColor = {高:'var(--red)',中:'var(--amber)',低:'var(--blue)'}[iss.severity]||'var(--text2)';
+    const sevBg = {高:'rgba(248,113,113,0.12)',中:'rgba(251,191,36,0.12)',低:'rgba(96,165,250,0.08)'}[iss.severity]||'rgba(255,255,255,0.05)';
+    return `<div style="padding:5px 10px;margin:2px 0;border-radius:5px;background:${sevBg};font-size:11px">
+      <span style="color:${sevColor};font-weight:600;font-size:10px">● ${iss.severity}</span>
+      <span style="color:var(--text2)"> [${esc(iss.file)}] ${esc(iss.check)}</span>
+      <span style="color:var(--text3);margin-left:4px">— ${esc(iss.detail)}</span>
+    </div>`;
+  }).join('');
+
+  card.innerHTML = `
+    <div class="patch-head">
+      <span class="patch-field">🔎 生成后自检</span>
+      <span style="font-size:10px;color:var(--text3)">${issues.length} 个问题 · ${highIssues.length}高 ${medIssues.length}中</span>
+    </div>
+    <div class="patch-body">
+      <div style="color:var(--text2);font-size:11px;margin-bottom:4px">
+        检查维度：用户画像 · 约束冲突 · 字段完整性 · 跨文件引用 · 命令复用 · 干预覆盖 · AI协作禁忌 · 文件大小 · @import · rules拆分 · 双模型架构
+      </div>
+      ${issuesHtml}
+    </div>
+    <div class="patch-acts">
+      ${highIssues.length > 0 ? '<span style="color:var(--red);font-size:10px;padding:5px">⚠ 存在高风险问题，请修正后再导出</span>' : '<span style="color:var(--green);font-size:10px;padding:5px">✓ 未发现高风险问题</span>'}
+    </div>`;
+  container.appendChild(card);
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function renderSkillChecklist(checklist, container){
+  if(!checklist) return;
+  const {skills, totalSkills, issues} = checklist;
+  const highIssues = issues.filter(i => i.severity === '高');
+  const medIssues = issues.filter(i => i.severity === '中');
+  const lowIssues = issues.filter(i => i.severity === '低');
+
+  const card = document.createElement('div');
+  card.className = 'patch-card';
+  card.id = 'skillChecklist';
+  card.style.marginTop = '9px';
+
+  let issuesHtml = '';
+  if(issues.length === 0){
+    issuesHtml = '<div style="color:var(--green);padding:8px;font-size:11px">✓ 所有检查通过，未发现问题</div>';
+  } else {
+    issues.forEach(iss => {
+      const sevColor = {高:'var(--red)',中:'var(--amber)',低:'var(--blue)'}[iss.severity]||'var(--text2)';
+      const sevBg = {高:'rgba(248,113,113,0.15)',中:'rgba(251,191,36,0.15)',低:'rgba(96,165,250,0.15)'}[iss.severity]||'rgba(255,255,255,0.05)';
+      issuesHtml += `<div style="padding:6px 10px;margin:3px 0;border-radius:6px;background:${sevBg};font-size:11px">
+        <span style="color:${sevColor};font-weight:600;font-family:var(--mono);font-size:10px">${iss.severity}</span>
+        <span style="color:var(--accent);font-family:var(--mono);margin:0 6px">${esc(iss.skill)}</span>
+        <span style="color:var(--text2)">[${esc(iss.check)}]</span>
+        <span style="color:var(--text3);margin-left:4px">${esc(iss.detail)}</span>
+      </div>`;
+    });
+  }
+
+  card.innerHTML = `
+    <div class="patch-head">
+      <span class="patch-field">🔍 SKILL 触发验证清单</span>
+      <span style="font-size:10px;color:var(--text3)">${totalSkills} 个 skill · ${highIssues.length}高 ${medIssues.length}中 ${lowIssues.length}低</span>
+    </div>
+    <div class="patch-body">
+      <div style="color:var(--text2);font-size:11px;margin-bottom:6px">
+        <b>已验证 Skill：</b>${skills.map(s => `<code style="font-size:10px">${esc(s)}</code>`).join(' ')}
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">
+        □ 触发条件具体性  □ 反触发条件明确  □ 触发/反触发矛盾  □ 跨skill重叠  □ 内置行为冲突
+      </div>
+      ${issuesHtml}
+    </div>
+    <div class="patch-acts">
+      ${highIssues.length > 0 ? '<span style="color:var(--red);font-size:10px;padding:5px">⚠ 存在高风险问题，建议修正后再导出</span>' : ''}
+      ${highIssues.length === 0 && medIssues.length > 0 ? '<span style="color:var(--amber);font-size:10px;padding:5px">⚡ 存在中风险问题，请留意</span>' : ''}
+    </div>`;
+  container.appendChild(card);
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function renderReply(text,aiIdx){
+  const sm=text.match(/\[STAGE:(\d)\]/);if(sm) setStage(parseInt(sm[1]));
+
+  // 提取代码块（与显示替换用同一正则，确保显示即捕获）
+  const codeBlocks = [];
+  const cbRe = /```(?:markdown|xml|bash)?[\s\S]*?```/g;
+  let cbMatch;
+  while((cbMatch = cbRe.exec(text)) !== null){
+    const full = cbMatch[0];
+    let inner = full.replace(/```(?:markdown|xml|bash)?\s*\n?/,'');
+    inner = inner.replace(/\n?\s*```$/,'').trim();
+    codeBlocks.push({full, inner});
+  }
+  let cm = null, sm2 = null;
+  for(const block of codeBlocks){
+    if(!cm && (block.inner.startsWith('# Project') || block.inner.startsWith('#\x20Project'))){
+      cm = [block.full, block.inner];
+    }
+    if(!sm2 && block.inner.startsWith('<skill')){
+      sm2 = [block.full, block.inner];
+    }
+  }
+
+  // 对比模式：如果已有内容且新内容不同，暂存并展示对比
+  if(cm&&S.mode==='compare'&&S.claudeMd&&cm[1].trim()!==S.claudeMd){
+    S._pendingClaudeMd=cm[1].trim();
+  } else if(cm){
+    S._prevClaudeMd=S.claudeMd;
+    S.claudeMd=cm[1].trim();
+    S._justGenerated='claude';
+    updateFileCards();
+  }
+  if(sm2&&S.mode==='compare'&&S.skillMd&&sm2[1].trim()!==S.skillMd){
+    S._pendingSkillMd=sm2[1].trim();
+  } else if(sm2){
+    S._prevSkillMd=S.skillMd;
+    S.skillMd = mergeSkill(S.skillMd, sm2[1].trim());
+    S._justGenerated='skill';
+    updateFileCards();
+  }
+  if(cm||sm2){ saveFiles(); }
+  // 全自动模式：生成后自动下载文件
+  if(S.mode==='full_auto'){
+    if(cm) setTimeout(() => dlFile('claude'), 400);
+    if(sm2) setTimeout(() => dlFile('skill'), 700);
+  }
+
+  // 如果同时提取到了 SKILL.md，确保阶段至少推进到 4
+  if(S.skillMd && S.stage < 4) setStage(4);
+  // 如果提取到了 CLAUDE.md 但没有 SKILL.md，确保阶段至少推进到 3
+  if(S.claudeMd && !S.skillMd && S.stage < 3) setStage(3);
+
+  const patches=[];
+  const pr=/^\{[^{}\n]*"patch_id"[^{}\n]*\}$/gm;let pm;
+  while((pm=pr.exec(text))!==null){try{patches.push(JSON.parse(pm[0]));}catch(e){}}
+
+  let display=text
+    .replace(/\[STAGE:\d\]/g,'')
+    .replace(/```(?:markdown|xml|bash)?[\s\S]*?```/g,cb=>{
+      const inner=cb.replace(/```(?:markdown|xml|bash)?/,'').replace(/```$/,'').trim();
+      if(inner.startsWith('#\x20Project')) return '[📄 CLAUDE.md 已生成 — 点击左侧预览]';
+      if(inner.startsWith('<skill')) return '[🔧 SKILL.md 已生成 — 点击左侧预览]';
+      return `<pre>${esc(inner)}</pre>`;
+    })
+    .replace(/^\{[^{}\n]*"patch_id"[^{}\n]*\}$/gm,'').trim();
+
+  const bub=addMsg('ai',display||'（文件已生成，请点击左侧预览）',aiIdx);
+
+  // 对比模式：渲染文件对比卡片
+  if(S._pendingClaudeMd) renderFileCompare('claude',S.claudeMd,S._pendingClaudeMd,bub);
+  if(S._pendingSkillMd) renderFileCompare('skill',S.skillMd,S._pendingSkillMd,bub);
+
+  if(patches.length){
+    if(S.mode==='full_auto'){patches.forEach(p=>{autoApply(p);});addSysMsg(`全自动：${patches.length} 条修补已自动采纳`);}
+    else patches.forEach(p=>renderPatch(p,bub));
+  }
+
+  // SKILL.md 更新后，自动生成触发验证清单
+  if(sm2){
+    const checklist = generateSkillChecklist(S.skillMd);
+    if(checklist) renderSkillChecklist(checklist, bub);
+  }
+
+  // 两个文件都就绪时，触发生成后自检
+  if(S.claudeMd && S.skillMd && (cm || sm2)){
+    const selfCheck = generateSelfCheck(S.claudeMd, S.skillMd);
+    if(selfCheck && selfCheck.issues.length > 0) renderSelfCheck(selfCheck, bub);
+  }
+
+  // Check模式：阶段推进后暂停提醒
+  if(sm && S.mode==='checkpoint'){
+    const stageNames={1:'项目理解',2:'自动化识别',3:'CLAUDE.md 生成',4:'SKILL.md 提取',5:'修补审查'};
+    const markerStage=parseInt(sm[1]);
+    const actualStage=S.stage;
+    // 用实际推进到的阶段显示暂停消息
+    const displayStage=actualStage>=1?actualStage:markerStage;
+    if(displayStage>=1 && displayStage<=4){
+      // 如果阶段被自动推进了（比如同时生成了两个文件），合并提示
+      if(actualStage>markerStage && markerStage>=3 && actualStage>=4){
+        addSysMsg(`⏸ 阶段${markerStage}「${stageNames[markerStage]}」和阶段${actualStage}「${stageNames[actualStage]}」已同时完成 — 请检查后回复确认，或提出修改意见`);
+      } else {
+        addSysMsg(`⏸ 阶段${displayStage}「${stageNames[displayStage]}」已完成 — 请检查后回复确认，或提出修改意见`);
+      }
+    }
+  }
+
+  // 自动弹出新生成的文件预览（对比模式不弹，用对比卡片替代）
+  if(!S._pendingClaudeMd && !S._pendingSkillMd){
+    if(sm2) showPreview('skill', true);
+    else if(cm) showPreview('claude', true);
+  }
+}
+
+function renderPatch(p,container){
+  const cc={low:'conf-low',medium:'conf-med',high:'conf-high'}[p.confidence]||'conf-med';
+  const card=document.createElement('div');card.className='patch-card';card.id='pc-'+p.patch_id;
+  card.innerHTML=`
+    <div class="patch-head"><span class="patch-field">${esc(p.field||'')}</span><span class="conf ${cc}">${p.confidence||'medium'}</span></div>
+    <div class="patch-body">
+      <div class="diff-grid">
+        <div class="diff-box"><div class="dl cur">当前</div><div class="dc">${esc(p.current||'（空）')}</div></div>
+        <div class="diff-box"><div class="dl sug">建议</div><div class="dc">${esc(p.suggestion||'')}</div></div>
+      </div>
+      <div class="patch-reason">原因：${esc(p.reason||'')}</div>
+    </div>
+    <div class="patch-acts" id="pa-${p.patch_id}">
+      <button class="pb-act ok" onclick="applyP(${JSON.stringify(p).replace(/"/g,'&quot;')},true,'${p.patch_id}')">✓ 采纳</button>
+      <button class="pb-act no" onclick="applyP(${JSON.stringify(p).replace(/"/g,'&quot;')},false,'${p.patch_id}')">✗ 拒绝</button>
+      <button class="pb-act" onclick="editP('${p.patch_id}',${JSON.stringify(p).replace(/"/g,'&quot;')})">✎ 修改</button>
+      <button class="pb-act" onclick="askAiOptions('${p.patch_id}',${JSON.stringify(p).replace(/"/g,'&quot;')})" style="color:var(--accent)">🤖 AI 给选项</button>
+    </div>`;
+  container.appendChild(card);
+}
+
+function applyP(p,ok,pid){
+  const acts=document.getElementById('pa-'+pid);
+  if(acts){acts.parentElement.className='patch-done';acts.parentElement.innerHTML=ok?'<span style="color:var(--green)">✓ 已采纳</span>':'<span style="color:var(--red)">✗ 已拒绝</span>';}
+  if(ok) autoApply(p);
+}
+function autoApply(p){
+  if(p.current&&p.suggestion){
+    if(S.skillMd) S.skillMd=S.skillMd.split(p.current).join(p.suggestion);
+    if(S.claudeMd) S.claudeMd=S.claudeMd.split(p.current).join(p.suggestion);
+    saveFiles();
+  }
+}
+function editP(pid,p){
+  const acts=document.getElementById('pa-'+pid);
+  acts.innerHTML=`<textarea id="pe-${pid}" style="flex:1;padding:5px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;font-family:var(--mono);font-size:10px;color:var(--text);min-height:55px;width:calc(100% - 105px)">${esc(p.suggestion||'')}</textarea>
+    <button class="pb-act ok" onclick="confirmE('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})">确认</button>
+    <button class="pb-act" onclick="renderPatchActs('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})">取消</button>`;
+}
+function confirmE(pid,p){
+  const val=document.getElementById('pe-'+pid)?.value||p.suggestion;
+  p.suggestion=val;applyP(p,true,pid);addSysMsg(`修补 ${pid} 已采纳（用户修改）`);
+}
+function renderPatchActs(pid,p){
+  document.getElementById('pa-'+pid).innerHTML=`
+    <button class="pb-act ok" onclick="applyP(${JSON.stringify(p).replace(/"/g,'&quot;')},true,'${pid}')">✓ 采纳</button>
+    <button class="pb-act no" onclick="applyP(${JSON.stringify(p).replace(/"/g,'&quot;')},false,'${pid}')">✗ 拒绝</button>
+    <button class="pb-act" onclick="editP('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})">✎ 修改</button>
+    <button class="pb-act" onclick="askAiOptions('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})" style="color:var(--accent)">🤖 AI 给选项</button>`;
+}
+
+async function askAiOptions(pid, p){
+  const acts = document.getElementById('pa-'+pid);
+  acts.innerHTML = '<span style="color:var(--accent);font-size:11px;padding:5px">🤖 AI 思考中…</span>';
+
+  const provider = S.provider;
+  const key = S.apiKeys[provider.id];
+  const model = getActiveModel();
+  if(!provider || !key || !model){
+    acts.innerHTML = '<span style="color:var(--red);font-size:11px">⚠ 请先配置 API</span>';
+    setTimeout(() => renderPatchActs(pid, p), 2000);
+    return;
+  }
+
+  const prompt = `你是一个文本修改辅助。当前内容是：
+---
+${p.current || '（空）'}
+---
+建议修改为：
+---
+${p.suggestion || ''}
+---
+修改原因：${p.reason || '未说明'}
+
+请给出3个不同方向的替代版本，每个版本一行，用数字编号。每个版本不超过2句话。从不同角度思考（简洁版、详细版、折中版）。`;
+
+  try{
+    let body = provider.buildBody([{role:'user',content:prompt}], '你是一个文本修改辅助，给出3个不同方向的替代版本。', model, key);
+    let url = provider.customUrl && body._url ? body._url : provider.baseUrl;
+    if(body._url) delete body._url;
+    if(provider.id === 'custom'){
+      const cu = document.getElementById('baseUrlInput').value.trim();
+      if(cu) url = cu;
+    }
+
+    const res = await fetch(url, {method:'POST', headers: provider.headers(key), body: JSON.stringify(body)});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const reply = provider.parseReply(data);
+    if(!reply) throw new Error('空回复');
+
+    // 解析3个选项（按数字编号分割）
+    const options = [];
+    const lines = reply.split('\n');
+    for(const line of lines){
+      const m = line.match(/^\s*(\d)[\.\)、]\s*(.+)/);
+      if(m && options.length < 3){
+        options.push(m[2].trim());
+      }
+    }
+    // 如果没匹配到编号格式，尝试按句号分割
+    if(options.length < 2){
+      const altLines = reply.split(/[。；;]\s*/).filter(l => l.trim().length > 5).slice(0, 3);
+      if(altLines.length >= 2) options.push(...altLines.map(l => l.trim()));
+    }
+
+    if(options.length >= 2){
+      renderAiOptions(pid, p, options);
+      // 记录修补辅助使用
+      trackPatchAssist(provider.id, model);
+    } else {
+      acts.innerHTML = `<span style="color:var(--amber);font-size:10px">⚠ AI 未返回足够的选项，请重试</span>
+        <button class="pb-act" onclick="renderPatchActs('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})">返回</button>`;
+    }
+  }catch(e){
+    acts.innerHTML = `<span style="color:var(--red);font-size:10px">⚠ 请求失败：${esc(e.message.slice(0,80))}</span>
+      <button class="pb-act" onclick="renderPatchActs('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})">返回</button>`;
+  }
+}
+
+function renderAiOptions(pid, p, options){
+  const acts = document.getElementById('pa-'+pid);
+  // 用临时存储避免选项文字中的特殊字符破坏 onclick
+  window._aiOpts = window._aiOpts || {};
+  window._aiOpts[pid] = {p, options};
+
+  let html = '<div style="display:flex;flex-direction:column;gap:4px;width:100%">';
+  html += '<div style="font-size:10px;color:var(--accent);margin-bottom:2px;font-family:var(--mono)">🤖 AI 建议的3个替代版本：</div>';
+  options.forEach((opt, i) => {
+    const label = ['简洁版','详细版','折中版'][i] || `选项${i+1}`;
+    html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:5px 7px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.5">
+      <span style="color:var(--accent);font-family:var(--mono);font-size:10px;flex-shrink:0;margin-top:1px">${label}</span>
+      <span style="flex:1">${esc(opt)}</span>
+      <button class="pb-act ok" style="flex-shrink:0;font-size:9px;padding:2px 7px" onclick="selectAiOption('${pid}',${i})">选这个</button>
+    </div>`;
+  });
+  html += `<button class="pb-act" style="align-self:flex-start;margin-top:3px" onclick="renderPatchActs('${pid}',${JSON.stringify(p).replace(/"/g,'&quot;')})">← 返回手动修改</button>`;
+  html += '</div>';
+  acts.innerHTML = html;
+}
+
+function selectAiOption(pid, idx){
+  const stored = window._aiOpts && window._aiOpts[pid];
+  if(!stored) return;
+  const chosenText = stored.options[idx];
+  if(!chosenText) return;
+  stored.p.suggestion = chosenText;
+  applyP(stored.p, true, pid);
+  addSysMsg(`修补 ${pid} 已采纳（AI 选项）`);
+  delete window._aiOpts[pid];
+}
+
+function trackPatchAssist(provider, model){
+  try{
+    const records = JSON.parse(localStorage.getItem('csg_patch_assists')||'[]');
+    records.push({provider, model, timestamp: Date.now()});
+    localStorage.setItem('csg_patch_assists', JSON.stringify(records));
+  }catch(e){}
+}
+
+// 对比模式：并排展示文件旧/新版本
+function renderFileCompare(type, oldContent, newContent, container){
+  const label = type==='claude' ? 'CLAUDE.md' : 'SKILL.md';
+  const cid = 'fcmp-'+type;
+  // 截取前 40 行用于预览
+  const oldPreview = oldContent ? oldContent.split('\n').slice(0,40).join('\n') : '（空文件）';
+  const newPreview = newContent ? newContent.split('\n').slice(0,40).join('\n') : '（空文件）';
+  const totalOld = oldContent ? oldContent.split('\n').length : 0;
+  const totalNew = newContent ? newContent.split('\n').length : 0;
+  const truncated = totalNew > 40;
+
+  const card=document.createElement('div');card.className='patch-card';card.id=cid;
+  card.style.marginTop='9px';
+  card.innerHTML=`
+    <div class="patch-head">
+      <span class="patch-field">📄 ${label} 文件对比</span>
+      <span class="conf conf-high">文件变更</span>
+    </div>
+    <div class="patch-body">
+      <div style="color:var(--text3);font-size:10px;margin-bottom:6px">AI 建议更新 ${label}，请对比后确认是否采纳。${truncated ? '（预览前40行，点击采纳后应用全文）' : ''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+        <div class="diff-box">
+          <div class="dl cur">当前版本（${totalOld} 行）</div>
+          <div class="dc" style="max-height:300px;overflow-y:auto;white-space:pre-wrap">${esc(oldPreview)}</div>
+        </div>
+        <div class="diff-box">
+          <div class="dl sug">建议版本（${totalNew} 行）</div>
+          <div class="dc" style="max-height:300px;overflow-y:auto;white-space:pre-wrap">${esc(newPreview)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="patch-acts" id="fcmp-acts-${type}">
+      <button class="pb-act ok" onclick="acceptFileCompare('${type}')">✓ 采纳新版</button>
+      <button class="pb-act no" onclick="rejectFileCompare('${type}')">✗ 保留旧版</button>
+    </div>`;
+  container.appendChild(card);
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function acceptFileCompare(type){
+  if(type==='claude'){
+    S._prevClaudeMd=S.claudeMd;
+    S.claudeMd=S._pendingClaudeMd;
+    S._pendingClaudeMd=null;
+    S._justGenerated='claude';
+  } else {
+    S._prevSkillMd=S.skillMd;
+    S.skillMd=S._pendingSkillMd;
+    S._pendingSkillMd=null;
+    S._justGenerated='skill';
+  }
+  updateFileCards();
+  saveFiles();
+  const acts=document.getElementById('fcmp-acts-'+type);
+  if(acts) acts.innerHTML='<span style="color:var(--green);padding:5px 11px;font-size:11px">✓ 已采纳新版</span>';
+  addSysMsg(`✓ 已采纳 ${type==='claude'?'CLAUDE.md':'SKILL.md'} 更新`);
+}
+
+function rejectFileCompare(type){
+  if(type==='claude'){ S._pendingClaudeMd=null; }
+  else { S._pendingSkillMd=null; }
+  const acts=document.getElementById('fcmp-acts-'+type);
+  if(acts) acts.innerHTML='<span style="color:var(--red);padding:5px 11px;font-size:11px">✗ 已保留旧版</span>';
+  addSysMsg(`✗ 已保留 ${type==='claude'?'CLAUDE.md':'SKILL.md'} 旧版本`);
+}
+
+// ====== PREVIEW / EXPORT ======
+function showPreview(type, autoDownload=false){
+  const content=type==='claude'?S.claudeMd:S.skillMd;
+  const title=type==='claude'?'CLAUDE.md':'SKILL.md';
+  const overlay=document.createElement('div');overlay.className='mo';
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  overlay.innerHTML=`<div class="mb">
+    <div class="mh"><div class="mt">${title}</div><button class="mc-btn" onclick="this.closest('.mo').remove()">×</button></div>
+    <div class="mc">${esc(content||'（尚未生成）')}</div>
+    <div class="mf">
+      <button class="m-btn pri" onclick="copyT('${type}')">复制</button>
+      <button class="m-btn" onclick="dlFile('${type}')">下载</button>
+      <button class="m-btn" onclick="this.closest('.mo').remove();document.getElementById('inp').focus();" style="color:var(--accent)">继续完善</button>
+      <button class="m-btn" onclick="this.closest('.mo').remove()">完成 ✓</button>
+    </div></div>`;
+  document.body.appendChild(overlay);
+  // 自动生成时触发下载，保存到本地
+  if(autoDownload) dlFile(type);
+}
+function showLocalMdPreview(){
+  const content=S.localMd;
+  const overlay=document.createElement('div');overlay.className='mo';
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  overlay.innerHTML=`<div class="mb">
+    <div class="mh"><div class="mt">CLAUDE.local.md（个人偏好预览）</div><button class="mc-btn" onclick="this.closest('.mo').remove()">×</button></div>
+    <div class="mc">${esc(content||'（尚未设置个人偏好）')}</div>
+    <div class="mf">
+      <button class="m-btn pri" onclick="navigator.clipboard.writeText(\`${esc(content||'').replace(/`/g,'\\`')}\`);addSysMsg('已复制');">复制</button>
+      <button class="m-btn" onclick="generateLocalMd()">下载</button>
+      <button class="m-btn" onclick="this.closest('.mo').remove()">关闭</button>
+    </div></div>`;
+  document.body.appendChild(overlay);
+}
+function copyT(type){navigator.clipboard.writeText(type==='claude'?S.claudeMd:S.skillMd).then(()=>addSysMsg('已复制到剪贴板'));}
+
+// ====== File System Access API — 直接写入项目文件夹 ======
+async function selectOutputDir(){
+  try{
+    const handle = await window.showDirectoryPicker({mode:'readwrite'});
+    S._dirHandle = handle;
+    S._dirPath = handle.name;
+    document.getElementById('dirPath').textContent = '📂 ' + handle.name + ' （已就绪）';
+    document.getElementById('dirPath').style.color = 'var(--green)';
+    addSysMsg('输出文件夹已就绪：' + handle.name + ' — 生成文件将自动写入项目子文件夹');
+  }catch(e){
+    if(e.name !== 'AbortError') addSysMsg('选目录失败：' + e.message);
+  }
+}
+
+function getProjectName(){
+  // 从活跃项目获取名称
+  try{
+    const projects = JSON.parse(localStorage.getItem('csg_projects')||'[]');
+    const activeId = localStorage.getItem('csg_active_project')||'';
+    const proj = projects.find(p => p.id === activeId);
+    if(proj && proj.name) return proj.name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '-');
+  }catch(e){}
+  return 'default-project';
+}
+
+async function writeFileToDir(filename, content){
+  if(!S._dirHandle) return false;
+  try{
+    // 确保项目子文件夹存在
+    const projName = getProjectName();
+    let projDir;
+    try{ projDir = await S._dirHandle.getDirectoryHandle(projName, {create:false}); }
+    catch(e){ projDir = await S._dirHandle.getDirectoryHandle(projName, {create:true}); }
+    // 写入文件
+    const fileHandle = await projDir.getFileHandle(filename, {create:true});
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return true;
+  }catch(e){
+    console.error('writeFileToDir failed:', e);
+    return false;
+  }
+}
+
+async function testFileOutput(){
+  if(!S._dirHandle){ alert('请先点击「📁 选择输出文件夹」，选择 generated/ 目录'); return; }
+  const projName = 'test';
+  const testFiles = {
+    'CLAUDE.md': '# Project: test\n\n## Overview\n测试项目 — 验证文件输出功能\n\n## Tech Stack\n- HTML, CSS, JavaScript\n\n## Commands\n无构建命令',
+    'SKILL.md': '<skill>\n  <name>test-skill</name>\n  <description>测试用 skill</description>\n  <trigger>用户说"运行测试"</trigger>\n  <anti-trigger>用户说"跳过测试"</anti-trigger>\n</skill>',
+    'test-skill.skill.md': '<skill>\n  <name>test-skill</name>\n  <description>测试用 skill — 单独文件</description>\n  <trigger>测试触发</trigger>\n</skill>'
+  };
+  try{
+    // 用 "test" 作为项目名写入
+    let projDir;
+    try{ projDir = await S._dirHandle.getDirectoryHandle(projName, {create:false}); }
+    catch(e){ projDir = await S._dirHandle.getDirectoryHandle(projName, {create:true}); }
+    const results = [];
+    for(const [fn, content] of Object.entries(testFiles)){
+      const fh = await projDir.getFileHandle(fn, {create:true});
+      const w = await fh.createWritable();
+      await w.write(content);
+      await w.close();
+      results.push('✓ ' + fn);
+    }
+    addSysMsg(`测试完成！已在 ${projName}/ 子文件夹创建 ${results.length} 个文件：\n${results.join('\n')}`);
+    document.getElementById('dirPath').textContent = '📂 ' + S._dirPath + '/test/ （测试文件已写入）';
+    document.getElementById('dirPath').style.color = 'var(--green)';
+  }catch(e){
+    addSysMsg('测试失败：' + e.message);
+  }
+}
+
+async function dlFile(type){
+  let c=type==='claude'?S.claudeMd:S.skillMd,n=type==='claude'?'CLAUDE.md':'SKILL.md';
+  // 注入追踪注释（仅 CLAUDE.md，避免污染 SKILL.md 的 XML）
+  if(type==='claude'){
+    const tracker = `\n\n<!-- generated by claude-skill-generator v2.5, session: ${S._sessionHash}, date: ${new Date().toISOString().slice(0,10)} -->`;
+    if(/<!-- generated by claude-skill-generator/.test(c)){
+      c = c.replace(/<!-- generated by claude-skill-generator[^>]* -->/g, tracker.trim());
+    } else {
+      c += tracker;
+    }
+  }
+  // 优先直接写文件系统，否则触发下载
+  if(S._dirHandle){
+    const ok = await writeFileToDir(n, c);
+    if(ok){ addSysMsg(`已写入：${getProjectName()}/${n}`); }
+    else{ fallbackDownload(n, c); }
+  } else {
+    fallbackDownload(n, c);
+  }
+  if(S._justGenerated && S._justGenerated === type){
+    setTimeout(() => showFeedbackModal(type), 600);
+    S._justGenerated = null;
+  }
+}
+
+function fallbackDownload(filename, content){
+  const a=document.createElement('a');
+  a.href='data:text/markdown;charset=utf-8,'+encodeURIComponent(content);
+  a.download=filename;a.click();
+}
+function exportAll(){
+  let delay = 0;
+  if(S.claudeMd){ dlFile('claude'); delay = 400; }
+  if(S.skillMd){
+    setTimeout(() => { dlFile('skill'); }, delay);
+    // 也下载各独立 skill 文件
+    const container = document.getElementById('skillCards');
+    if(container && container._skills){
+      container._skills.forEach((sk, i) => {
+        setTimeout(() => { dlSkillXml('skill_'+i); }, delay + 300 + i * 200);
+      });
+    }
+  }
+  addSysMsg('全部文件已下载 — 建议保存到项目的 generated/ 文件夹');
+}
+
+// ====== 工具自优化 ======
+const META_OPTIMIZE_PROMPT = `你是一个 prompt 工程专家。请审查下面的 SYSTEM_PROMPT（它用于一个 Claude Code 项目规范生成器工具），并提出具体改进建议。
+
+审查维度：
+1. **时效性**：是否有过时的模型名称、API 端点、已淘汰的功能？
+2. **完整性**：是否缺少 Claude Code 最新特性的支持（如 memory 系统、worktree、plan mode、MCP servers 等）？
+3. **清晰度**：指令是否有歧义？AI 执行时可能产生什么误解？
+4. **实用性**：每个阶段是否真正收集了生成高质量 CLAUDE.md 所需的信息？
+5. **触发条件设计**：SKILL.md 的触发条件设计指导是否足够具体？
+6. **冗余**：是否有重复或自相矛盾的指令？
+
+要求：
+- 每条建议单独写一行 JSON，格式：{"patch_id":"opt_N","target":"system_prompt","field":"[具体位置，如 Stage 1 > 第二步]","current":"[当前文本片段，需精确匹配以便程序替换]","suggestion":"[改进后的文本]","reason":"[为什么改，从 prompt 工程角度说明]","confidence":"high|medium|low"}
+- 至少输出 2 条建议，最多 6 条
+- 只输出真正有改进价值的建议，不要为了凑数而提
+- 如果 prompt 已经很好，可以说"未发现需要改进的地方"
+- 当前文本片段必须能在 SYSTEM_PROMPT 中精确匹配到，否则无法自动替换`;
+
+async function optimizePrompt(){
+  if(!S.provider){alert('请先选择 AI 提供商并配置 Key');return;}
+  const key=S.apiKeys[S.provider.id];
+  if(!key){alert('请配置并保存 API Key');return;}
+  const model=getActiveModel();
+  if(!model){alert('请选择或输入模型');return;}
+  if(S.loading){return;}
+
+  addSysMsg('🔧 正在让 AI 审查工具逻辑…');
+  S.loading=true;
+  document.getElementById('outOptimize').disabled=true;
+  showTyping();
+
+  try{
+    const p=S.provider;
+    const sys='你是一个 prompt 工程专家。用中文回复。';
+    const msgs=[{role:'user',content:`${META_OPTIMIZE_PROMPT}\n\n=== 待审查的 SYSTEM_PROMPT ===\n${S.systemPrompt}`}];
+    let body=p.buildBody(msgs,sys,model,key);
+    let url=p.customUrl&&body._url?body._url:p.baseUrl;
+    if(body._url) delete body._url;
+    if(p.id==='custom'){
+      const cu=document.getElementById('baseUrlInput').value.trim();
+      if(cu) url=cu;
+    }
+
+    const res=await fetch(url,{method:'POST',headers:p.headers(key),body:JSON.stringify(body)});
+    if(!res.ok){const err=await res.text();throw new Error(httpErrorMsg(res.status, err));}
+    const data=await res.json();
+    const reply=p.parseReply(data);
+    if(!reply) throw new Error('AI 返回了空回复');
+
+    removeTyping();
+    // 解析修补建议
+    const patches=[];
+    const pr=/^\{[^{}\n]*"patch_id"[^{}\n]*\}$/gm;let pm;
+    while((pm=pr.exec(reply))!==null){
+      try{const parsed=JSON.parse(pm[0]);if(parsed.target==='system_prompt')patches.push(parsed);}catch(e){}
+    }
+
+    if(patches.length===0){
+      addMsg('ai',`🔧 工具自检完成。AI 的反馈：\n\n${reply.slice(0,500)}${reply.length>500?'…':''}\n\n未检测到需要自动应用的修补建议。`);
+    } else {
+      addMsg('ai',`🔧 工具自检完成，发现 <b>${patches.length} 条</b>可优化的地方。请逐条审核：`);
+      const lastBubble=document.querySelector('#chat .bubble:last-of-type');
+      patches.forEach(p=>renderOptimizePatch(p, lastBubble||document.getElementById('chat')));
+    }
+  }catch(e){
+    removeTyping();
+    addMsg('ai',`⚠️ 工具自检失败：${e.message}`);
+  }
+  S.loading=false;
+  document.getElementById('outOptimize').disabled=false;
+}
+
+function renderOptimizePatch(p, container){
+  const cc={high:'conf-high',medium:'conf-med',low:'conf-low'}[p.confidence]||'conf-med';
+  const card=document.createElement('div');
+  card.className='patch-card';
+  card.id='opt-'+p.patch_id;
+  card.style.borderColor='rgba(124,106,247,0.5)';
+  card.innerHTML=`
+    <div class="patch-head">
+      <span class="patch-field">🔧 ${esc(p.field||'SYSTEM_PROMPT')}</span>
+      <span class="conf ${cc}">${p.confidence||'medium'}</span>
+    </div>
+    <div class="patch-body">
+      <div class="diff-grid">
+        <div class="diff-box"><div class="dl cur">当前</div><div class="dc" style="max-height:120px;overflow-y:auto">${esc((p.current||'').slice(0,300))}${(p.current||'').length>300?'…':''}</div></div>
+        <div class="diff-box"><div class="dl sug">建议</div><div class="dc" style="max-height:120px;overflow-y:auto">${esc((p.suggestion||'').slice(0,300))}${(p.suggestion||'').length>300?'…':''}</div></div>
+      </div>
+      <div class="patch-reason">原因：${esc(p.reason||'')}</div>
+    </div>
+    <div class="patch-acts" id="opt-acts-${p.patch_id}">
+      <button class="pb-act ok" onclick="acceptOptimize('${p.patch_id}')">✓ 应用</button>
+      <button class="pb-act no" onclick="rejectOptimize('${p.patch_id}')">✗ 拒绝</button>
+      <button class="pb-act" onclick="editOptimize('${p.patch_id}')">✎ 手动编辑</button>
+    </div>`;
+  container.appendChild(card);
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+
+  // 暂存 patch 数据
+  window._optPatches = window._optPatches || {};
+  window._optPatches[p.patch_id] = p;
+}
+
+function acceptOptimize(pid){
+  const p = window._optPatches && window._optPatches[pid];
+  if(!p) return;
+  // 精确替换
+  if(p.current && S.systemPrompt.includes(p.current)){
+    S.systemPrompt = S.systemPrompt.split(p.current).join(p.suggestion);
+  } else if(p.suggestion){
+    // 如果精确匹配失败，追加到末尾作为补充说明
+    S.systemPrompt += '\n\n<!-- 用户采纳的优化 -->\n' + p.suggestion;
+  }
+  try{ localStorage.setItem('csg_system_prompt', S.systemPrompt); }catch(e){}
+  const acts=document.getElementById('opt-acts-'+pid);
+  if(acts) acts.innerHTML='<span style="color:var(--green);padding:5px 11px;font-size:11px">✓ 已应用 — 下次对话生效</span>';
+  addSysMsg(`✓ 已应用优化 ${pid}，下次对话将使用更新后的逻辑`);
+  delete window._optPatches[pid];
+}
+
+function rejectOptimize(pid){
+  const acts=document.getElementById('opt-acts-'+pid);
+  if(acts) acts.innerHTML='<span style="color:var(--red);padding:5px 11px;font-size:11px">✗ 已拒绝</span>';
+  delete window._optPatches[pid];
+}
+
+function editOptimize(pid){
+  const p = window._optPatches && window._optPatches[pid];
+  if(!p) return;
+  const acts=document.getElementById('opt-acts-'+pid);
+  acts.innerHTML=`<textarea id="opt-edit-${pid}" style="flex:1;padding:5px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;font-family:var(--mono);font-size:10px;color:var(--text);min-height:55px;width:100%;margin-bottom:5px">${esc(p.suggestion||'')}</textarea>
+    <div style="display:flex;gap:5px"><button class="pb-act ok" onclick="confirmOptimizeEdit('${pid}')">确认</button>
+    <button class="pb-act" onclick="cancelOptimizeEdit('${pid}')">取消</button></div>`;
+}
+
+function confirmOptimizeEdit(pid){
+  const val=document.getElementById('opt-edit-'+pid)?.value;
+  if(val && window._optPatches[pid]){
+    window._optPatches[pid].suggestion = val;
+  }
+  acceptOptimize(pid);
+}
+
+function cancelOptimizeEdit(pid){
+  const p = window._optPatches && window._optPatches[pid];
+  if(!p) return;
+  const acts=document.getElementById('opt-acts-'+pid);
+  acts.innerHTML=`
+    <button class="pb-act ok" onclick="acceptOptimize('${pid}')">✓ 应用</button>
+    <button class="pb-act no" onclick="rejectOptimize('${pid}')">✗ 拒绝</button>
+    <button class="pb-act" onclick="editOptimize('${pid}')">✎ 手动编辑</button>`;
+}
+
+function resetAll(){
+  autoSaveProject(); // 重置前先保存当前状态
+  S.history=[];S.claudeMd='';S.skillMd='';S.loading=false;S.stage=0;
+  S._prevClaudeMd='';S._prevSkillMd='';S._pendingClaudeMd=null;S._pendingSkillMd=null;
+  S._justGenerated=null;
+  document.getElementById('chat').innerHTML='';
+  ['outExport'].forEach(id=>document.getElementById(id).disabled=true);
+  document.getElementById('sendBtn').disabled=false;
+  setStage(0);
+  localStorage.removeItem('csg_claude_md');localStorage.removeItem('csg_skill_md');
+  updateFileCards();
+  addMsg('ai','已重置。请描述新项目。');
+}
+
+// ====== AI 知识面板 ======
+const KNOWLEDGE_ITEMS = [
+  {tag:'tip',tagLabel:'提示词技巧',text:'在 SYSTEM_PROMPT 中明确写出"禁止做的事"，比只写"应该做的事"更能防止 AI 越界。负面指令放在末尾效果更好。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'长 prompt 中，把最重要的指令放在开头和末尾（首因效应+近因效应）。中间的指令容易被 AI "遗忘"。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'给 AI 提供"好"和"坏"的输出示例，比纯文字描述格式要求有效 3 倍以上。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'触发条件设计要具体到关键词+上下文，避免"涉及文件操作时使用"这类泛泛表述——它会被所有任务触发。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'对于复杂任务，用 [STAGE:N] 标记强制 AI 按步骤执行，并在每步末尾要求确认。这能显著减少跳步和遗漏。'},
+  {tag:'news',tagLabel:'模型动态',text:'Claude Code 现在支持 .claude/rules/ 路径作用域规则，可按文件类型或目录加载不同指令，避免 CLAUDE.md 过长。'},
+  {tag:'news',tagLabel:'模型动态',text:'Claude Code 支持 auto memory（自动记忆），会自己保存调试经验和偏好到 ~/.claude/projects/ 目录。'},
+  {tag:'news',tagLabel:'模型动态',text:'CLAUDE.md 支持 @README.md 等文件导入语法，可在已有 README 的项目中避免重复内容。'},
+  {tag:'news',tagLabel:'模型动态',text:'Claude 4.7 Opus 支持 Fast Mode，输出速度更快。如果你的工具需要快速响应，优先选择 Opus 4.7。'},
+  {tag:'news',tagLabel:'模型动态',text:'CLAUDE.local.md 是 gitignored 的个人偏好文件，适合存放 sandbox URL、本地测试数据等不共享的设置。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'CLAUDE.md 超过 200 行会消耗更多上下文且降低遵循度。建议用 .claude/rules/ 按路径作用域拆分。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'双模型架构（Claude Code壳+DeepSeek脑）下，CLAUDE.md 用中文写、指令强硬；SKILL.md 由 Claude Code 解析，用英文写触发条件。'},
+  {tag:'tip',tagLabel:'提示词技巧',text:'CLAUDE.md 中的 User Profile 章节是最重要的上下文——它决定了 AI 的解释深度、回复风格和自主程度。'},
+  {tag:'warn',tagLabel:'注意',text:'不同 AI 模型对 SYSTEM_PROMPT 的理解能力差异很大。Gemini 对 systemInstruction 的遵守度低于在 messages 中直接给指令。'},
+  {tag:'warn',tagLabel:'注意',text:'API Key 存储在 localStorage 中是明文，不要在不信任的设备上使用。生产环境应使用后端代理。'},
+  {tag:'warn',tagLabel:'注意',text:'Auto memory 是机器本地的，不会跨机器共享。CLAUDE.md 才是团队共享的规范文件。'},
+];
+
+function refreshKnowledge(){
+  const panel = document.getElementById('knowledgePanel');
+  if(!panel) return;
+  // 随机选 3 条，保证不同类型各一条
+  const tips = KNOWLEDGE_ITEMS.filter(k=>k.tag==='tip');
+  const news = KNOWLEDGE_ITEMS.filter(k=>k.tag==='news');
+  const warns = KNOWLEDGE_ITEMS.filter(k=>k.tag==='warn');
+  const selected = [
+    tips[Math.floor(Math.random()*tips.length)],
+    news[Math.floor(Math.random()*news.length)],
+    warns[Math.floor(Math.random()*warns.length)]
+  ];
+  // 打乱顺序
+  for(let i=selected.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[selected[i],selected[j]]=[selected[j],selected[i]];}
+
+  panel.innerHTML = selected.map(k => `
+    <div class="knowledge-item">
+      <span class="ki-tag ${k.tag}">${k.tagLabel}</span>
+      ${k.text}
+    </div>`).join('') + '<div class="knowledge-refresh" onclick="refreshKnowledge()">🔄 换一批</div>';
+}
+
+init();
+</script>
+</body>
+</html>

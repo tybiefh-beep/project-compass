@@ -1,0 +1,41 @@
+# 构建产物和依赖
+node_modules/
+dist/
+build/
+
+# 媒体文件
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.flac
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.webp
+*.psd
+*.ai
+*.sketch
+
+# 压缩包
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 备份
+*.bak
+*~
+
+# macOS
+.DS_Store
+
+# 文档（二进制格式）
+doc/*.docx
+doc/*.doc
+doc/*.pdf
