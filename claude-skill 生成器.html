@@ -14,7 +14,9 @@
   .app.docs-collapsed{grid-template-columns:280px 1fr 40px}
 
   /* API Panel — project + provider + API key */
-  .api-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  .api-panel{background:var(--bg2);display:flex;flex-direction:column;overflow-y:auto;min-width:0}
+  .api-panel::-webkit-scrollbar{width:4px}
+  .api-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
   /* Nav Panel — mode, stages, prefs, files */
   .nav-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;min-width:0;border-left:1px solid var(--border)}
   /* Docs Panel — Claude docs + reference */
@@ -382,6 +384,7 @@
   <!-- 操作按钮 -->
   <div class="sec" style="padding-top:0">
     <button class="out-btn" id="outSelectDir" onclick="selectOutputDir()" style="color:var(--amber);font-size:10px;padding:6px 10px">📁 输出目录</button>
+    <div id="dirPath" style="font-size:9px;color:var(--text3);padding:2px 4px;font-family:var(--mono);word-break:break-all"></div>
     <button class="out-btn" id="outExport" disabled onclick="exportAll()" style="font-size:10px;padding:6px 10px">⬇ 导出全部</button>
     <button class="out-btn" onclick="resetAll()" style="color:var(--text3);font-size:10px;padding:6px 10px">↺ 重置</button>
   </div>
@@ -392,6 +395,10 @@
     <div id="githubPanel">
       <input type="password" class="api-input" id="githubToken" placeholder="GitHub Token" style="width:100%;font-size:10px;margin-bottom:4px" oninput="onGitHubChange()">
       <input type="text" class="api-input" id="githubRepo" placeholder="user/repo" style="width:100%;font-size:10px;margin-bottom:4px" oninput="onGitHubChange()">
+      <div style="display:flex;gap:4px;margin-bottom:4px">
+        <input type="text" class="api-input" id="githubBranch" placeholder="分支" style="flex:1;font-size:10px" oninput="onGitHubChange()">
+        <input type="text" class="api-input" id="githubPath" placeholder="路径" style="flex:1;font-size:10px" oninput="onGitHubChange()">
+      </div>
       <button class="out-btn" id="outGitHubSync" disabled onclick="syncToGitHub()" style="width:100%;justify-content:center;font-size:10px;padding:6px 10px">🔄 同步</button>
       <div id="githubStatus" style="font-size:9px;color:var(--text3);margin-top:3px"></div>
     </div>
