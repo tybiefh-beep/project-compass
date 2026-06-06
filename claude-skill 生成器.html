@@ -10,7 +10,8 @@
   [data-theme="light"]{--bg:#faf9f6;--bg2:#f2f1ed;--bg3:#e9e7e2;--bg4:#ddd9d2;--border:rgba(0,0,0,0.06);--border2:rgba(0,0,0,0.10);--text:#1a1a18;--text2:#5c5c55;--text3:#8a8a82;--accent:#c56545;--accent2:#b05538;--accent-rgb:197,101,69;--green:#3d7a62;--green-rgb:61,122,98;--amber:#9e7a2e;--amber-rgb:158,122,46;--red:#c94a3a;--blue:#4a7aab;--blue-rgb:74,122,171}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased}
-  .app{display:grid;grid-template-columns:280px 1fr 280px;height:100vh;overflow:hidden}
+  .app{display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:100vh;height:100vh;overflow:hidden}
+  .app.docs-collapsed{grid-template-columns:280px 1fr 40px}
 
   /* API Panel — project + provider + API key */
   .api-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -21,7 +22,7 @@
   .logo{padding:18px 14px 14px;flex-shrink:0}
   .logo h1{font-size:14px;font-weight:500;letter-spacing:-0.2px}
   .logo p{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
-  .sec{padding:0 12px;margin-bottom:16px;flex-shrink:0}
+  .sec{padding:0 12px;margin-bottom:12px;flex-shrink:0}
   .sec-label{font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
   .sec-label:hover{color:var(--text2)}
   .sec-toggle{font-size:11px;transition:transform 0.2s;display:inline-block}
@@ -148,11 +149,12 @@
   .sp-nav-btn:disabled{opacity:0.3;cursor:not-allowed}
 
   /* Docs Panel - 可折叠 */
-  .docs-panel{transition:width 0.25s,opacity 0.25s;overflow:hidden}
+  .docs-panel{overflow:hidden;transition:width 0.25s,opacity 0.2s}
   .docs-panel.collapsed{width:40px!important}
-  .docs-panel.collapsed .logo p,
-  .docs-panel.collapsed .docs-scroll{opacity:0;pointer-events:none}
-  .docs-panel.collapsed .logo{padding:12px 8px}
+  .docs-panel.collapsed .docs-scroll{opacity:0;pointer-events:none;width:0;overflow:hidden}
+  .docs-panel.collapsed .logo p{opacity:0}
+  .docs-panel:not(.collapsed){width:280px!important;overflow:visible}
+  .docs-panel:not(.collapsed) .docs-scroll{opacity:1;pointer-events:auto;width:auto;overflow-y:auto}
 
   /* Chat — Claude-style: centered, airy, minimal */
   .chat{flex:1;overflow-y:auto;padding:32px;display:flex;flex-direction:column;gap:24px}
@@ -1894,7 +1896,9 @@ function init(){
   // 恢复 docs-panel 折叠状态
   if(ls('csg_docs_collapsed')==='1'){
     const dp=document.getElementById('docsPanel');
+    const app=document.querySelector('.app');
     if(dp){dp.classList.add('collapsed');document.getElementById('docsToggle').textContent='▶';}
+    if(app) app.classList.add('docs-collapsed');
   }
   addMsg('ai', t('welcome.message'));
 }
@@ -1909,8 +1913,10 @@ function toggleTheme(){
 function toggleDocsPanel(){
   const dp=document.getElementById('docsPanel');
   const btn=document.getElementById('docsToggle');
-  if(!dp||!btn) return;
+  const app=document.querySelector('.app');
+  if(!dp||!btn||!app) return;
   dp.classList.toggle('collapsed');
+  app.classList.toggle('docs-collapsed');
   const isCollapsed=dp.classList.contains('collapsed');
   btn.textContent=isCollapsed?'▶':'◀';
   lset('csg_docs_collapsed',isCollapsed?'1':'0');
