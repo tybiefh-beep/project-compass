@@ -1462,29 +1462,36 @@ Wrap in \`\`\`markdown. Format below — triggers and anti-triggers must be keyw
 
 Reply in English.`;
 
+// ====== localStorage 封装（自动错误处理）=======
+function ls(key, fallback=''){try{return localStorage.getItem(key)||fallback;}catch(e){return fallback;}}
+function lset(key, val){try{localStorage.setItem(key, val);return true;}catch(e){console.warn('localStorage 写入失败:', key, e.message);return false;}}
+function lremove(key){try{localStorage.removeItem(key);}catch(e){}}
+
 // ====== STATE ======
+const MAX_HISTORY = 150; // 历史记录上限
+
 let S = {
   provider:null, mode:'full_auto', stage:0,
   history:[], claudeMd:'', skillMd:'', loading:false,
   apiKeys:{}, selectedModel:{}, verifiedModels:{},
-  systemPrompt: localStorage.getItem('csg_system_prompt') || ((navigator.language||'').toLowerCase().startsWith('en')?DEFAULT_SYSTEM_PROMPT_EN:DEFAULT_SYSTEM_PROMPT),
-  localMd: localStorage.getItem('csg_local_md') || '',  // 个人偏好 → CLAUDE.local.md
-  locale: localStorage.getItem('csg_locale') || detectLocale(),
-  githubToken: localStorage.getItem('csg_github_token') || '',
-  githubRepo: localStorage.getItem('csg_github_repo') || '',
-  githubBranch: localStorage.getItem('csg_github_branch') || 'main',
-  githubPath: localStorage.getItem('csg_github_path') || '',
+  systemPrompt: ls('csg_system_prompt') || ((navigator.language||'').toLowerCase().startsWith('en')?DEFAULT_SYSTEM_PROMPT_EN:DEFAULT_SYSTEM_PROMPT),
+  localMd: ls('csg_local_md'),  // 个人偏好 → CLAUDE.local.md
+  locale: ls('csg_locale') || detectLocale(),
+  githubToken: ls('csg_github_token'),
+  githubRepo: ls('csg_github_repo'),
+  githubBranch: ls('csg_github_branch') || 'main',
+  githubPath: ls('csg_github_path'),
   _prevClaudeMd:'', _prevSkillMd:'', _pendingClaudeMd:null, _pendingSkillMd:null,  // 对比模式用
   _justGenerated:null,  // 标记刚生成的文件类型，用于下载后触发评分弹窗
   _sessionHash: 's'+Date.now().toString(36),  // 会话标识，用于导出文件追踪
   _dirHandle: null,  // File System Access API 目录句柄
   _dirPath: ''        // 所选目录路径（仅用于显示）
 };
-try{ S.apiKeys=JSON.parse(localStorage.getItem('csg_keys')||'{}'); }catch(e){}
-try{ S.verifiedModels=JSON.parse(localStorage.getItem('csg_verified')||'{}'); }catch(e){}
+try{ S.apiKeys=JSON.parse(ls('csg_keys')||'{}'); }catch(e){}
+try{ S.verifiedModels=JSON.parse(ls('csg_verified')||'{}'); }catch(e){}
 // 如果 localStorage 没有自定义 prompt，初始化为默认值
-if(!localStorage.getItem('csg_system_prompt')){
-  try{ localStorage.setItem('csg_system_prompt', S.systemPrompt); }catch(e){}
+if(!ls('csg_system_prompt')){
+  lset('csg_system_prompt', S.systemPrompt);
 }
 
 // ====== I18N ======
@@ -1858,7 +1865,7 @@ function toggleLocale(){
 // ====== INIT ======
 function init(){
   // 恢复折叠状态
-  const collapsed = localStorage.getItem('csg_providers_collapsed');
+  const collapsed = ls('csg_providers_collapsed');
   const list=document.getElementById('providerList');
   PROVIDERS.forEach(p=>{
     const btn=document.createElement('button');
@@ -1870,14 +1877,14 @@ function init(){
   refreshProviderGrid();
   initProject();
   setMode(S.mode);
-  const savedFontSize=localStorage.getItem('fontSize')||'medium';
+  const savedFontSize=ls('fontSize')||'medium';
   setFontSize(savedFontSize);
   initPrefs();
   initGitHub();
   setupDragDrop();
   refreshKnowledge();
   // 加载日夜主题
-  const savedTheme=localStorage.getItem('csg_theme')||'dark';
+  const savedTheme=ls('csg_theme')||'dark';
   applyTheme(savedTheme);
   applyI18n();
   addMsg('ai', t('welcome.message'));
@@ -1887,7 +1894,7 @@ function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')||'dark';
   const next=cur==='dark'?'light':'dark';
   applyTheme(next);
-  try{ localStorage.setItem('csg_theme',next); }catch(e){}
+  lset('csg_theme',next);
 }
 
 function applyTheme(theme){
@@ -1901,7 +1908,7 @@ function toggleProviders(){
   const arrow=document.getElementById('secToggle');
   list.classList.toggle('collapsed');
   arrow.classList.toggle('folded');
-  localStorage.setItem('csg_providers_collapsed',list.classList.contains('collapsed')?'1':'0');
+  lset('csg_providers_collapsed',list.classList.contains('collapsed')?'1':'0');
 }
 
 function refreshProviderGrid(){
@@ -2110,7 +2117,7 @@ function saveApiKey(){
   const key=document.getElementById('apiKeyInput').value.trim();
   if(!key){alert(t('alert.enterApiKey'));return;}
   S.apiKeys[S.provider.id]=key;
-  localStorage.setItem('csg_keys',JSON.stringify(S.apiKeys));
+  lset('csg_keys',JSON.stringify(S.apiKeys));
   document.getElementById('apiStatus').className='api-status ok';
   document.getElementById('apiStatus').textContent='· 已保存';
   if(S.provider.id==='custom'){
@@ -2135,7 +2142,7 @@ function togglePrefs(){
   const collapsed=panel.style.display==='none';
   panel.style.display=collapsed?'':'none';
   arrow.classList.toggle('folded',!collapsed);
-  localStorage.setItem('csg_prefs_collapsed', collapsed?'0':'1');
+  lset('csg_prefs_collapsed', collapsed?'0':'1');
 }
 function onPrefsChange(){
   S.localMd=document.getElementById('prefsInput').value;
@@ -2172,7 +2179,7 @@ function initPrefs(){
   const input=document.getElementById('prefsInput');
   if(input) input.value=S.localMd;
   document.getElementById('genLocalMdBtn').disabled=!S.localMd.trim();
-  const collapsed=localStorage.getItem('csg_prefs_collapsed');
+  const collapsed=ls('csg_prefs_collapsed');
   if(collapsed==='1'){
     document.getElementById('prefsPanel').style.display='none';
     document.getElementById('prefsToggle').classList.add('folded');
@@ -2187,7 +2194,7 @@ function setFontSize(size){
   document.documentElement.style.setProperty('--input-font',v.input);
   document.querySelectorAll('#fs-small,#fs-medium,#fs-large').forEach(b=>b.classList.remove('active'));
   document.getElementById('fs-'+size).classList.add('active');
-  localStorage.setItem('fontSize',size);
+  lset('fontSize',size);
 }
 
 function updateTopbar(){
@@ -2280,18 +2287,18 @@ function reevaluateState(){
 // ====== FILE PERSISTENCE ======
 function saveFiles(){
   try{
-    if(S.claudeMd) localStorage.setItem('csg_claude_md',S.claudeMd);
-    else localStorage.removeItem('csg_claude_md');
-    if(S.skillMd) localStorage.setItem('csg_skill_md',S.skillMd);
-    else localStorage.removeItem('csg_skill_md');
+    if(S.claudeMd) lset('csg_claude_md',S.claudeMd);
+    else lremove('csg_claude_md');
+    if(S.skillMd) lset('csg_skill_md',S.skillMd);
+    else lremove('csg_skill_md');
     updateFileCards();
   }catch(e){ /* localStorage 可能满了 */ }
 }
 
 function loadFiles(){
   try{
-    S.claudeMd=localStorage.getItem('csg_claude_md')||'';
-    S.skillMd=localStorage.getItem('csg_skill_md')||'';
+    S.claudeMd=ls('csg_claude_md');
+    S.skillMd=ls('csg_skill_md');
   }catch(e){}
 }
 
@@ -2399,8 +2406,8 @@ function dlSkillXml(key){
 const PROJ_KEY='csg_projects', ACTIVE_PROJ_KEY='csg_active_project';
 function getProjects(){try{return JSON.parse(localStorage.getItem(PROJ_KEY)||'[]');}catch(e){return[];}}
 function saveProjects(arr){try{localStorage.setItem(PROJ_KEY,JSON.stringify(arr));}catch(e){}}
-function getActiveProjId(){return localStorage.getItem(ACTIVE_PROJ_KEY)||'';}
-function setActiveProjId(id){localStorage.setItem(ACTIVE_PROJ_KEY,id);}
+function getActiveProjId(){return ls(ACTIVE_PROJ_KEY);}
+function setActiveProjId(id){lset(ACTIVE_PROJ_KEY,id);}
 
 function autoSaveProject(){
   const activeId=getActiveProjId();
@@ -2520,14 +2527,14 @@ function deleteProject(id){
 function initProject(){
   // 迁移旧数据：如果项目列表为空但旧格式文件存在，迁移到默认项目
   let projects=getProjects();
-  const oldClaude=localStorage.getItem('csg_claude_md');
-  const oldSkill=localStorage.getItem('csg_skill_md');
+  const oldClaude=ls('csg_claude_md');
+  const oldSkill=ls('csg_skill_md');
   if(projects.length===0&&(oldClaude||oldSkill)){
     const id='proj_'+Date.now();
     projects.push({id,name:'默认项目',history:[],claudeMd:oldClaude||'',skillMd:oldSkill||'',stage:0,mode:'checkpoint',providerId:null,updatedAt:Date.now()});
     saveProjects(projects);
     setActiveProjId(id);
-    localStorage.removeItem('csg_claude_md');localStorage.removeItem('csg_skill_md');
+    lremove('csg_claude_md');lremove('csg_skill_md');
     projects=getProjects(); // 刷新
   }
   let activeId=getActiveProjId();
@@ -2675,6 +2682,10 @@ async function sendMessage(){
   const userIdx=S.history.length;
   addMsg('human',text,userIdx);
   S.history.push({role:'user',content:text});
+  // 历史记录上限：超过 MAX_HISTORY 条时删除最早的 50 条
+  if(S.history.length > MAX_HISTORY){
+    S.history = S.history.slice(50);
+  }
 
   S.loading=true;document.getElementById('sendBtn').disabled=true;showTyping();
 
@@ -2707,7 +2718,11 @@ async function sendMessage(){
       if(cu) url=cu;
     }
 
-    const res=await fetch(url,{method:'POST',headers:p.headers(key),body:JSON.stringify(body)});
+    // 超时处理：120 秒
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+    const res=await fetch(url,{method:'POST',headers:p.headers(key),body:JSON.stringify(body),signal:controller.signal});
+    clearTimeout(timeout);
     if(!res.ok){const err=await res.text();throw new Error(httpErrorMsg(res.status, err));}
     const data=await res.json();
     const reply=p.parseReply(data);
@@ -2719,7 +2734,8 @@ async function sendMessage(){
     autoSaveProject();
   }catch(e){
     removeTyping();
-    addMsg('ai',t('error.aiRequest',{msg:e.message}));
+    const msg = e.name === 'AbortError' ? '请求超时（120秒），请稍后重试或切换模型' : e.message;
+    addMsg('ai',t('error.aiRequest',{msg}));
     autoSaveProject();
   }
   S.loading=false;document.getElementById('sendBtn').disabled=false;
@@ -3491,9 +3507,9 @@ function selectAiOption(pid, idx){
 
 function trackPatchAssist(provider, model){
   try{
-    const records = JSON.parse(localStorage.getItem('csg_patch_assists')||'[]');
+    const records = JSON.parse(ls('csg_patch_assists')||'[]');
     records.push({provider, model, timestamp: Date.now()});
-    localStorage.setItem('csg_patch_assists', JSON.stringify(records));
+    lset('csg_patch_assists', JSON.stringify(records));
   }catch(e){}
 }
 
@@ -3615,8 +3631,8 @@ async function selectOutputDir(){
 function getProjectName(){
   // 从活跃项目获取名称
   try{
-    const projects = JSON.parse(localStorage.getItem('csg_projects')||'[]');
-    const activeId = localStorage.getItem('csg_active_project')||'';
+    const projects = JSON.parse(ls('csg_projects')||'[]');
+    const activeId = ls('csg_active_project');
     const proj = projects.find(p => p.id === activeId);
     if(proj && proj.name) return proj.name.replace(/[^a-zA-Z0-9一-鿿_-]/g, '-');
   }catch(e){}
@@ -3880,7 +3896,7 @@ function resetAll(){
   ['outExport'].forEach(id=>document.getElementById(id).disabled=true);
   document.getElementById('sendBtn').disabled=false;
   setStage(0);
-  localStorage.removeItem('csg_claude_md');localStorage.removeItem('csg_skill_md');
+  lremove('csg_claude_md');lremove('csg_skill_md');
   updateFileCards();
   addMsg('ai','已重置。请描述新项目。');
 }
@@ -3956,7 +3972,7 @@ function toggleGitHub(){
   const collapsed = panel.style.display === 'none';
   panel.style.display = collapsed ? '' : 'none';
   arrow.classList.toggle('folded', !collapsed);
-  localStorage.setItem('csg_github_collapsed', collapsed ? '0' : '1');
+  lset('csg_github_collapsed', collapsed ? '0' : '1');
 }
 
 function onGitHubChange(){
@@ -3964,10 +3980,10 @@ function onGitHubChange(){
   S.githubRepo = document.getElementById('githubRepo').value.trim();
   S.githubBranch = document.getElementById('githubBranch').value.trim() || 'main';
   S.githubPath = document.getElementById('githubPath').value.trim();
-  try{ localStorage.setItem('csg_github_token', S.githubToken); }catch(e){}
-  try{ localStorage.setItem('csg_github_repo', S.githubRepo); }catch(e){}
-  try{ localStorage.setItem('csg_github_branch', S.githubBranch); }catch(e){}
-  try{ localStorage.setItem('csg_github_path', S.githubPath); }catch(e){}
+  lset('csg_github_token', S.githubToken);
+  lset('csg_github_repo', S.githubRepo);
+  lset('csg_github_branch', S.githubBranch);
+  lset('csg_github_path', S.githubPath);
   updateGitHubStatus();
 }
 
@@ -4073,7 +4089,7 @@ function initGitHub(){
   document.getElementById('githubRepo').value = S.githubRepo;
   document.getElementById('githubBranch').value = S.githubBranch;
   document.getElementById('githubPath').value = S.githubPath;
-  const collapsed = localStorage.getItem('csg_github_collapsed');
+  const collapsed = ls('csg_github_collapsed');
   if(collapsed === '1'){
     document.getElementById('githubPanel').style.display = 'none';
     document.getElementById('githubToggle').classList.add('folded');
