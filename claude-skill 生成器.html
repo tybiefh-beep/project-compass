@@ -279,14 +279,21 @@
   .docs-section pre{font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow-x:auto;color:var(--text2);line-height:1.5;white-space:pre-wrap;max-height:200px;overflow-y:auto}
 
   /* v3.1 STAGE 0 元问询 */
-  .s0q{margin-bottom:16px}
-  .s0q-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px}
+  .s0-progress{display:flex;gap:6px;padding:14px 18px 0;justify-content:center}
+  .s0-pg-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all .25s}
+  .s0-pg-active{background:var(--accent);transform:scale(1.4)}
+  .s0-pg-done{background:var(--accent);opacity:.5}
+  .s0q{margin-bottom:16px;animation:s0In .25s ease}
+  .s0q-label{font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .s0q-no{display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:50%;font-size:11px;font-weight:700}
   .s0q-opts{display:flex;flex-direction:column;gap:6px}
-  .s0opt{padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;color:var(--text2);position:relative}
-  .s0opt:hover{border-color:var(--border2);color:var(--text)}
-  .s0opt.selected{background:rgba(var(--accent-rgb),0.12);border-color:var(--accent);color:var(--text);padding-left:32px}
-  .s0opt.selected::before{content:"✓";position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--accent);font-weight:700;font-size:14px}
-  .s0opt[data-recommend="1"]::after{content:"推荐";position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--accent);background:rgba(var(--accent-rgb),0.15);padding:2px 6px;border-radius:4px;pointer-events:none}
+  .s0opt{padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);position:relative;transition:all .15s}
+  .s0opt:hover{border-color:var(--border2);color:var(--text);transform:translateX(2px)}
+  .s0opt.selected{background:rgba(var(--accent-rgb),0.12);border-color:var(--accent);color:var(--text);padding-left:36px}
+  .s0opt.selected::before{content:"✓";position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--accent);font-weight:700;font-size:14px}
+  .s0-rec{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--accent);background:rgba(var(--accent-rgb),0.15);padding:2px 6px;border-radius:4px;pointer-events:none;font-weight:600}
+  .s0-enter{animation:s0In .3s ease}
+  @keyframes s0In{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
@@ -1512,7 +1519,7 @@ Reply in English.`;
 
 // ====== localStorage 封装（自动错误处理）=======
 function ls(key, fallback=''){try{return localStorage.getItem(key)||fallback;}catch(e){return fallback;}}
-function lset(key, val){try{localStorage.setItem(key, val);return true;}catch(e){console.warn('localStorage 写入失败:', key, e.message);return false;}}
+function lset(key, val){try{const s=typeof val==='string'?val:JSON.stringify(val);localStorage.setItem(key, s);return true;}catch(e){console.warn('localStorage 写入失败:', key, e.message);return false;}}
 function lremove(key){try{localStorage.removeItem(key);}catch(e){}}
 
 // ====== STATE ======
@@ -1954,7 +1961,7 @@ function tryShowStage0(){
       setTimeout(showStage0, 600);
     } else {
       if(typeof S!=='undefined'){
-        S.stage0 = saved;
+        try{ S.stage0 = JSON.parse(saved); }catch(e){ S.stage0 = { skipped: true }; }
         S.skipSkill = ls('pc_skipSkill') === 'true';
       }
     }
@@ -4310,76 +4317,107 @@ function showStage0(){
   const mo = document.createElement('div');
   mo.className = 'mo';
   mo.id = 'stage0Modal';
+  const Q = (idx, label, key, opts) => `
+    <div class="s0q" data-idx="${idx}">
+      <div class="s0q-label"><span class="s0q-no">${idx}</span> ${label}</div>
+      <div class="s0q-opts" data-key="${key}">
+        ${opts.map(o => `<div class="s0opt" data-val="${o[0]}"${o[2]?' data-recommend="1"':''}>${o[1]}${o[2]?'<span class="s0-rec">推荐</span>':''}</div>`).join('')}
+      </div>
+    </div>`;
+  const questions = [
+    { label: '这个项目主要是哪种？', key: 'projectType', opts: [
+      ['界面型','界面型 — 小工具、原型、自己点着玩'],
+      ['命令行型','命令行型 — CLI、脚本、批处理'],
+      ['自动化型','自动化型 — 监控、自动回复、定时任务'],
+      ['协作型','协作型 — 团队 SOP、流程规范'],
+      ['模板型','模板型 — 周报、报告、文档生成'],
+    ]},
+    { label: '平时谁会用？', key: 'operator', opts: [
+      ['我自己用','我自己用'],
+      ['Claude Code 用','Claude Code 用 — 写代码时触发'],
+      ['Agent 用','Agent 用 — AI 自动跑流程'],
+      ['团队用','团队用 — 其他人也会用到'],
+    ]},
+    { label: 'SKILL.md 里的 skill 怎么来？', key: 'skillSource', opts: [
+      ['优先模板','优先模板 — 库里有就套'],
+      ['AI 现写','AI 现写 — 每次按需生成'],
+      ['混合','混合 — 先查库，缺啥 AI 补', true],
+    ]},
+    { label: 'AI 生成时要不要停下来问？', key: 'autoLevel', opts: [
+      ['一口气跑完','一口气跑完 — 中间不打断'],
+      ['关键步骤问','关键步骤问 — STAGE 4/5 停下确认'],
+      ['每步都问','每步都问 — 慢但稳'],
+    ]},
+  ];
   mo.innerHTML = `
-    <div class="mb" style="width:560px">
-      <div class="mh"><div class="mt">开始前，4 个关键问题</div><button class="mc-btn" onclick="skipStage0()">×</button></div>
-      <div class="mc" style="font-family:var(--sans);line-height:1.6">
-        <p style="color:var(--text3);font-size:12px;margin-bottom:16px">填完自动进入 STAGE 1，开始描述你的项目。</p>
-        <div class="s0q">
-          <div class="s0q-label">1. 这个项目主要是哪种？</div>
-          <div class="s0q-opts" data-key="projectType">
-            <div class="s0opt" data-val="界面型">界面型 — 小工具、原型、自己点着玩</div>
-            <div class="s0opt" data-val="命令行型">命令行型 — CLI、脚本、批处理</div>
-            <div class="s0opt" data-val="自动化型">自动化型 — 监控、自动回复、定时任务</div>
-            <div class="s0opt" data-val="协作型">协作型 — 团队 SOP、流程规范</div>
-            <div class="s0opt" data-val="模板型">模板型 — 周报、报告、文档生成</div>
-          </div>
-        </div>
-        <div class="s0q">
-          <div class="s0q-label">2. 平时谁会用？</div>
-          <div class="s0q-opts" data-key="operator">
-            <div class="s0opt" data-val="我自己用">我自己用</div>
-            <div class="s0opt" data-val="Claude Code 用">Claude Code 用 — 写代码时触发</div>
-            <div class="s0opt" data-val="Agent 用">Agent 用 — AI 自动跑流程</div>
-            <div class="s0opt" data-val="团队用">团队用 — 其他人也会用到</div>
-          </div>
-        </div>
-        <div class="s0q">
-          <div class="s0q-label">3. SKILL.md 里的 skill 怎么来？</div>
-          <div class="s0q-opts" data-key="skillSource">
-            <div class="s0opt" data-val="优先模板">优先模板 — 库里有就套</div>
-            <div class="s0opt" data-val="AI 现写">AI 现写 — 每次按需生成</div>
-            <div class="s0opt" data-val="混合" data-recommend="1">混合（推荐）— 先查库，缺啥 AI 补</div>
-          </div>
-        </div>
-        <div class="s0q">
-          <div class="s0q-label">4. AI 生成时要不要停下来问？</div>
-          <div class="s0q-opts" data-key="autoLevel">
-            <div class="s0opt" data-val="一口气跑完">一口气跑完 — 中间不打断</div>
-            <div class="s0opt" data-val="关键步骤问">关键步骤问 — STAGE 4/5 停下确认</div>
-            <div class="s0opt" data-val="每步都问">每步都问 — 慢但稳</div>
-          </div>
-        </div>
+    <div class="mb" style="width:520px">
+      <div class="mh">
+        <div class="mt">开始前，4 个关键问题</div>
+        <button class="mc-btn" onclick="skipStage0()">×</button>
+      </div>
+      <div class="s0-progress"><span class="s0-pg-dot s0-pg-active" data-i="0"></span><span class="s0-pg-dot" data-i="1"></span><span class="s0-pg-dot" data-i="2"></span><span class="s0-pg-dot" data-i="3"></span></div>
+      <div class="mc" style="font-family:var(--sans);line-height:1.6;max-height:60vh">
+        <p style="color:var(--text3);font-size:12px;margin-bottom:18px">点选答案后自动进入下一题。</p>
+        ${questions.map((q,i) => Q(i+1, q.label, q.key, q.opts)).join('')}
       </div>
       <div class="mf">
         <button class="m-btn" onclick="skipStage0()">跳过</button>
-        <button class="m-btn" style="margin-left:auto;background:var(--accent);color:#fff;border-color:var(--accent)" onclick="submitStage0()">开始 →</button>
+        <button class="m-btn s0-start" style="margin-left:auto;background:var(--accent);color:#fff;border-color:var(--accent);opacity:.4;pointer-events:none" onclick="submitStage0()">开始 →</button>
       </div>
     </div>
   `;
   document.body.appendChild(mo);
+
+  // 默认只显示 Q1
+  const allQ = mo.querySelectorAll('.s0q');
+  allQ.forEach((q, i) => { if(i > 0) q.style.display = 'none'; });
+
+  // 点选项：选中 + 推进到下一题
   mo.querySelectorAll('.s0q-opts').forEach(group => {
     group.addEventListener('click', e => {
       const opt = e.target.closest('.s0opt');
       if(!opt) return;
       group.querySelectorAll('.s0opt').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
-      // 自动滚到下一题（iOS 表单 UX）
+
+      const currentQ = group.closest('.s0q');
+      const currentIdx = parseInt(currentQ.dataset.idx) - 1;
+      const isLast = currentIdx === allQ.length - 1;
+
+      // 标记进度点
+      mo.querySelectorAll('.s0-pg-dot').forEach((d, i) => {
+        d.classList.toggle('s0-pg-done', i < currentIdx);
+        d.classList.toggle('s0-pg-active', i === currentIdx);
+      });
+
+      if(isLast){
+        // 最后一题：激活"开始"按钮
+        const btn = mo.querySelector('.s0-start');
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        // 标记进度点全 done
+        mo.querySelectorAll('.s0-pg-dot').forEach(d => {
+          d.classList.add('s0-pg-done');
+          d.classList.remove('s0-pg-active');
+        });
+        return;
+      }
+
+      // 推进到下一题：当前淡出 → 下一题滑入
       setTimeout(() => {
-        const optGroups = mo.querySelectorAll('.s0q-opts');
-        const idx = Array.from(optGroups).indexOf(group);
-        if(idx >= 0 && idx < optGroups.length - 1){
-          const nextQ = optGroups[idx+1].parentElement; // .s0q
-          const mc = mo.querySelector('.mc');
-          if(mc && nextQ){
-            const nextTop = nextQ.offsetTop - 12;
-            mc.scrollTop = nextTop;
-          }
-        }
-      }, 200);
+        currentQ.style.display = 'none';
+        const nextQ = allQ[currentIdx + 1];
+        nextQ.style.display = '';
+        nextQ.classList.add('s0-enter');
+        // 滚到顶
+        const mc = mo.querySelector('.mc');
+        if(mc) mc.scrollTop = 0;
+        setTimeout(() => nextQ.classList.remove('s0-enter'), 300);
+      }, 220);
     });
   });
-  // 点背景关闭（点 .mo 本身而非 .mb 时）
+
+  // 点背景关闭
   mo.addEventListener('click', e => {
     if(e.target === mo) skipStage0();
   });
