@@ -1,4 +1,4 @@
-# Project: Claude·Skill 文件生成器
+# Project: Project Compass（项目罗盘）
 
 ## 运行架构
 - 本文件由 DeepSeek 模型读取（Claude Code 做壳，DeepSeek 做脑）
@@ -6,7 +6,7 @@
 - 结构化标记（如 [STAGE:1]）需加显式说明，因为 DeepSeek 对此类标记输出不稳定
 
 ## 项目定义
-HTML 单文件工具，对话式交互，帮用户生成 CLAUDE.md 和 SKILL.md 文件。接入多家 AI API，支持模型版本切换与实时验证。
+HTML 单文件工具，对话式交互，帮用户在混沌的项目想法中找到方向，生成 CLAUDE.md（项目操作手册）和 SKILL.md（重复操作封装）。隐喻为"罗盘"——帮用户校准方向后，给出可落地的导航文档。
 
 ## Automation Mode
 MODE: full-auto

@@ -283,7 +283,7 @@
 <div class="drag-overlay" id="dragOverlay"><div class="drag-hint" data-i18n="upload.dropHint">📂 松开以上传文件</div></div>
 <div class="app">
 <div class="api-panel">
-  <div class="logo"><h1 data-i18n="logo.title">Claude · Skill</h1><p data-i18n="logo.subtitle">v2.5 · 双模型优化</p></div>
+  <div class="logo"><h1 data-i18n="logo.title">🧭 Project Compass</h1><p data-i18n="logo.subtitle">v2.6 · 项目罗盘</p></div>
 
   <!-- Project -->
   <div class="sec" style="padding-bottom:8px">
@@ -993,8 +993,14 @@ Claude Code 有两套互补记忆：CLAUDE.md（你写指令）+ Auto Memory（C
 
 ---
 
-### [STAGE:5] — 提取 SKILL.md
-目标：从 CLAUDE.md 中识别真正值得封装的操作，生成可被 Claude Code 正确触发的技能文件。
+### [STAGE:5] — 识别日常工作流（罗盘校准）
+目标：**从用户的日常重复操作中**识别值得封装为 skill 的工作流。SKILL.md 解决的是"用户每周/每天重复做的事"，不是"项目搭建本身"。
+
+#### 核心理念（必读）
+- **CLAUDE.md** = 项目的静态说明（一次生成后基本不变）
+- **SKILL.md** = 用户重复操作的封装（每个 skill 解决一个具体重复场景）
+- **常见误区**：从 CLAUDE.md 的章节里挖 skill → 大多数项目章节挖不出真正有价值的 skill
+- **正确路径**：先问用户"你每周/每天要做什么重复的事"，再生成对应的 skill
 
 #### 判断标准：一个操作值得封装为 skill，必须同时满足：
 1. **重复性**：用户会多次执行这个操作（至少每周一次）
@@ -1002,17 +1008,21 @@ Claude Code 有两套互补记忆：CLAUDE.md（你写指令）+ Auto Memory（C
 3. **触发可识别**：用户的需求能通过关键词或上下文被 AI 准确识别
 4. **封装收益**：封装后能显著减少用户的输入量或 AI 的犯错率
 
-#### 第一步：候选清单分析 [STAGE:5]
-- **逐章节阅读 CLAUDE.md**，每个章节问："这里有值得封装的操作吗？"
-- 对每个候选 skill，列出：技能名、来源章节、一句话描述、封装价值
-- **必须列出你考虑过但排除的操作**，说明不符合哪条判断标准
-- 用清晰的分层列表输出
+#### 第一步：发现用户痛点 [STAGE:5]
+向用户问：
+- 你每天/每周要做的重复操作是什么？（如：补豆、清洁、记录消耗）
+- 哪些操作你希望 AI 听到关键词就自动执行？
+- 哪些操作你已经手动做了 N 次但每次都要重新解释？
 
-**末尾询问**："以上候选清单是否完整？有没有需要增减的？"
+对每个痛点，AI 初步评估是否符合上述 4 条标准，列出：
+- **候选 skill**：技能名、一句话描述、预计触发词
+- **排除项**：用户提了但不符合标准的（如一次性任务、步骤不固定的）
+
+**末尾询问**："以上痛点清单是否完整？有没有需要增减的？"
 
 #### 第二步：逐个生成 skill [STAGE:5]
 **每次只生成 1 个 skill**。生成前先说明推理过程：
-- 依据了 CLAUDE.md 中哪段具体内容
+- 依据了用户的哪个痛点描述
 - 触发条件设计逻辑（考虑了哪些边界情况）
 - 为什么步骤这样编排
 
@@ -1523,8 +1533,8 @@ const I18N = {
   const Z=I18N.zh, E=I18N.en;
 
   // Logo
-  Z['logo.title']='Claude · Skill'; E['logo.title']='Claude · Skill';
-  Z['logo.subtitle']='v2.5 · 双模型优化'; E['logo.subtitle']='v2.5 · Dual-Model Optimized';
+  Z['logo.title']='🧭 Project Compass'; E['logo.title']='🧭 Project Compass';
+  Z['logo.subtitle']='v2.6 · 项目罗盘'; E['logo.subtitle']='v2.6 · Project Compass';
 
   // API Panel
   Z['project.label']='当前项目'; E['project.label']='Current Project';
@@ -1933,6 +1943,14 @@ function renderStageProgress(){
   const container=document.getElementById('stageProgress');
   if(!container) return;
   const stageNames=['',t('stage.0')||'项目描述',t('stage.1')||'工具架构',t('stage.2')||'自动化识别',t('stage.3')||'CLAUDE.md',t('stage.4')||'SKILL.md',t('stage.5')||'监督修补',t('stage.6')||'文件就绪'];
+  // 阶段产出预览（鼠标悬停时显示）
+  const stageOutputs=[
+    '','','','','',
+    '→ 产生 CLAUDE.md（项目操作手册）',
+    '→ 产生 SKILL.md（重复操作封装）',
+    '→ 修补建议清单',
+    '→ 文件可导出'
+  ];
   let html='<div class="sp-track">';
   for(let i=1;i<=7;i++){
     const isDone=S.stage>=i;
@@ -1941,7 +1959,8 @@ function renderStageProgress(){
     const cls=isDone?'done':isActive?'active':isLocked?'locked':'';
     const icon=isDone?'✓':i;
     const line=i<7?'<div class="sp-line'+(S.stage>=i?' done':'')+'"></div>':'';
-    html+=`<div class="sp-node ${cls}" onclick="${isDone?"goToStage("+i+")":""}" title="${stageNames[i]}">${icon}</div>${line}`;
+    const tip=stageNames[i]+(stageOutputs[i]?'\n'+stageOutputs[i]:'');
+    html+=`<div class="sp-node ${cls}" onclick="${isDone?"goToStage("+i+")":""}" title="${esc(tip)}">${icon}</div>${line}`;
   }
   html+='</div>';
   html+=`<span class="sp-label">阶段 <strong>${S.stage}</strong>/7: ${stageNames[S.stage]||'项目描述'}</span>`;
@@ -2641,6 +2660,41 @@ function initProject(){
   }
 }
 
+function showRecalibratePrompt(){
+  const modal=document.createElement('div');
+  modal.className='mo';
+  modal.innerHTML=`<div class="mb" style="max-width:480px">
+    <div class="mh"><div class="mt">🧭 方向校准</div><button class="mc-btn" onclick="this.closest('.mo').remove()">×</button></div>
+    <div class="mc" style="font-size:13px;line-height:1.7;color:var(--text2)">
+      CLAUDE.md 已生成。你现在可以：
+      <br><br>
+      <b>① 确认并继续</b> — 进入阶段5 提取 skill
+      <br>
+      <b>② 回到前序阶段调整</b> — 如果用户画像、项目理解或自动化策略需要修正
+    </div>
+    <div class="mf">
+      <button class="m-btn pri" onclick="this.closest('.mo').remove()">继续 →</button>
+      <button class="m-btn" onclick="recalibrateToStage(1)">回到阶段1</button>
+      <button class="m-btn" onclick="recalibrateToStage(2)">回到阶段2</button>
+      <button class="m-btn" onclick="recalibrateToStage(3)">回到阶段3</button>
+    </div></div>`;
+  document.body.appendChild(modal);
+}
+
+function recalibrateToStage(n){
+  // 关闭所有 modal
+  document.querySelectorAll('.mo').forEach(m=>m.remove());
+  // 重新进入指定阶段
+  setStage(n);
+  // 保留已有 CLAUDE.md 不重置，但提示 AI 用户想调整什么
+  const stageNames=['','用户画像','项目理解','工具架构','自动化策略'];
+  const sysPromptHint=`\n\n=== 用户请求：回到阶段${n}（${stageNames[n]}）重新校准 ===\n之前的 CLAUDE.md 已生成但用户想调整前序信息。请基于用户的新输入重新生成 CLAUDE.md。`;
+  // 追加系统提示到下一次调用
+  S._recalibrateStage=n;
+  S._recalibrateHint=sysPromptHint;
+  addSysMsg(`🧭 已回到阶段${n}：${stageNames[n]}，请告诉我你想调整什么`);
+}
+
 function addSysMsg(text){
   const chat=document.getElementById('chat');
   const el=document.createElement('div');
@@ -2761,6 +2815,11 @@ async function sendMessage(){
     let sys=S.systemPrompt+(S.locale==='zh'?
       `\n\n当前自动化模式：${S.mode}。当前所处阶段：${S.stage}`:
       `\n\nCurrent automation mode: ${S.mode}. Current stage: ${S.stage}`);
+    // 注入重新校准提示
+    if(S._recalibrateHint){
+      sys+=S._recalibrateHint;
+      S._recalibrateHint=null;
+    }
     // 注入用户个人偏好
     if(S.localMd && S.localMd.trim()){
       sys+=`\n\n=== 用户个人偏好（将写入 CLAUDE.local.md） ===\n${S.localMd}\n生成 CLAUDE.md 时请参考以上偏好调整指令风格。`;
@@ -3409,6 +3468,10 @@ function renderReply(text,aiIdx){
         addSysMsg(t('msg.checkpointBoth',{s1:markerStage, name1:t('stage.reply.'+markerStage), s2:actualStage, name2:t('stage.reply.'+actualStage)}));
       } else {
         addSysMsg(t('msg.checkpointDone',{s:displayStage, name:t('stage.reply.'+displayStage)}));
+      }
+      // 阶段4（CLAUDE.md 生成）后，提供"重新校准"选项
+      if(displayStage===4 && S.claudeMd){
+        setTimeout(()=>showRecalibratePrompt(), 1500);
       }
     }
   }
