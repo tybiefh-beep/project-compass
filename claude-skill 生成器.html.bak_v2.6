@@ -315,25 +315,7 @@
 <body>
 <div class="drag-overlay" id="dragOverlay"><div class="drag-hint" data-i18n="upload.dropHint">📂 松开以上传文件</div></div>
 <div class="app">
-<!-- v3 顶栏：Logo + 阶段进度条 + 偏好入口 -->
-<div class="topbar">
-  <div class="topbar-logo">🧭 Project Compass <span>v3.0 · 项目罗盘</span></div>
-  <div class="topbar-stage" id="topbarStage">
-    <div style="font-size:11px;color:var(--text3)">STAGE 1/7 — 项目描述</div>
-  </div>
-  <div class="topbar-actions">
-    <button onclick="toggleSidebar()" title="折叠/展开侧栏" id="sidebarToggleBtn">☰</button>
-    <button onclick="openPrefsModal()" title="个人偏好">⚙</button>
-    <button onclick="setFontSize('small')" style="font-size:10px" id="fs-small">A</button>
-    <button onclick="setFontSize('medium')" style="font-size:12px" id="fs-medium" class="active">A</button>
-    <button onclick="setFontSize('large')" style="font-size:14px" id="fs-large">A</button>
-    <button onclick="toggleLocale()" title="中文/EN" id="localeToggle">🌐</button>
-    <button onclick="toggleTheme()" title="切换日/夜模式" id="themeToggle">🌙</button>
-    <button onclick="resetAll()" data-i18n="topbar.clear">清空</button>
-  </div>
-</div>
-
-<div class="sidebar">
+<div class="api-panel">
   <div class="logo"><h1 data-i18n="logo.title">🧭 Project Compass</h1><p data-i18n="logo.subtitle">v2.6 · 项目罗盘</p></div>
 
   <!-- Project -->
@@ -391,7 +373,17 @@
     </div>
   </div>
 
-  <!-- 个人偏好已挪到顶部 ⚙️ 模态框 -->
+  <!-- 个人偏好 -->
+  <div class="sec">
+    <div class="sec-label" style="cursor:pointer" onclick="togglePrefs()"><span data-i18n="prefs.label">个人偏好</span><span style="font-size:9px;color:var(--text3);margin-left:4px" data-i18n="prefs.localMd">(local.md)</span><span class="sec-toggle" id="prefsToggle">▼</span></div>
+    <div id="prefsPanel">
+      <textarea id="prefsInput" data-i18n-placeholder="prefs.placeholder" placeholder="输入你的个人偏好，一行一条…" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:10px;font-family:var(--mono);color:var(--text);resize:vertical;min-height:50px;outline:none;line-height:1.6;transition:border-color 0.2s" oninput="onPrefsChange()"></textarea>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <button onclick="savePrefs()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--text2)">保存</button>
+        <button onclick="generateLocalMd()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--accent);background:transparent;cursor:pointer;font-size:10px;font-family:var(--sans);color:var(--accent)" id="genLocalMdBtn" disabled>生成</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 输出文件 -->
   <div class="sec" style="padding-bottom:0">
@@ -422,7 +414,14 @@
     </div>
   </div>
 
-  <!-- 操作按钮已挪到底部抽屉 -->
+  <!-- 操作按钮 -->
+  <div class="sec" style="padding-top:0">
+    <button class="out-btn" id="outSelectDir" onclick="selectOutputDir()" style="color:var(--amber);font-size:10px;padding:6px 10px">📁 输出目录</button>
+    <div id="dirPath" style="font-size:9px;color:var(--text3);padding:2px 4px;font-family:var(--mono);word-break:break-all"></div>
+    <button class="out-btn" id="outExport" disabled onclick="exportAll()" style="font-size:10px;padding:6px 10px">⬇ 导出全部</button>
+    <button class="out-btn" onclick="resetAll()" style="color:var(--text3);font-size:10px;padding:6px 10px">↺ 重置</button>
+    <button class="out-btn" onclick="clearAllData()" style="color:var(--red);font-size:10px;padding:6px 10px" title="清空所有 localStorage 数据（API Key、模型选择、生成的文件、项目列表）">🧹 清空数据</button>
+  </div>
 
   <!-- GitHub 同步 -->
   <div class="sec" style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px">
@@ -442,8 +441,20 @@
 </div>
 
 
-<div class="main-area">
-  <!-- 阶段进度条（顶部下方） -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-info" id="topbarInfo">选择提供商并配置 Key 后开始</div>
+    <div class="topbar-model" id="topbarModel" style="display:none"></div>
+    <div class="mode-row" style="width:auto;flex-shrink:0">
+      <button class="mode-btn" id="fs-small" onclick="setFontSize('small')" style="font-size:10px">A</button>
+      <button class="mode-btn active" id="fs-medium" onclick="setFontSize('medium')" style="font-size:12px">A</button>
+      <button class="mode-btn" id="fs-large" onclick="setFontSize('large')" style="font-size:14px">A</button>
+    </div>
+    <button class="topbar-theme" onclick="toggleLocale()" title="中文/EN" id="localeToggle">🌐</button>
+    <button class="topbar-theme" onclick="toggleTheme()" title="切换日/夜模式" id="themeToggle">🌙</button>
+    <button class="clear-btn" onclick="resetAll()" data-i18n="topbar.clear">清空</button>
+  </div>
+  <!-- 阶段进度条 -->
   <div class="stage-progress" id="stageProgress"></div>
   <div class="chat" id="chat"></div>
   <div class="input-area">
@@ -454,49 +465,7 @@
   </div>
 </div>
 
-<!-- v3 底部抽屉：输出文件 -->
-<div class="bottom-drawer" id="bottomDrawer">
-  <div class="drawer-header" onclick="toggleDrawer()">
-    <div>
-      <span class="drawer-toggle" id="drawerToggle">▼</span>
-      <span style="margin-left:8px;font-size:12px;color:var(--text2)">输出文件</span>
-      <span style="margin-left:6px;font-size:10px;color:var(--text3)" id="drawerCount">(0)</span>
-    </div>
-    <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
-      <button class="m-btn" style="padding:4px 10px;font-size:11px" id="outSelectDir" onclick="selectOutputDir()">📁 输出目录</button>
-      <button class="m-btn" style="padding:4px 10px;font-size:11px" id="outExport" disabled onclick="exportAll()">⬇ 导出全部</button>
-    </div>
-  </div>
-  <div class="drawer-body" id="drawerBody">
-    <div class="file-card" id="fileCardClaude" style="min-width:220px">
-      <div class="fc-top"><span class="fc-icon">📄</span><span class="fc-name">CLAUDE.md</span></div>
-      <div class="fc-meta" id="fcMetaClaude">尚未生成</div>
-      <div class="fc-acts">
-        <button class="fc-btn" id="fcViewClaude" disabled onclick="showPreview('claude')">查看</button>
-        <button class="fc-btn" id="fcDlClaude" disabled onclick="dlFile('claude')">下载</button>
-      </div>
-    </div>
-    <div class="file-card" id="fileCardSkill" style="min-width:220px">
-      <div class="fc-top"><span class="fc-icon">🔧</span><span class="fc-name">SKILL.md</span></div>
-      <div class="fc-meta" id="fcMetaSkill">尚未生成</div>
-      <div class="fc-acts">
-        <button class="fc-btn" id="fcViewSkill" disabled onclick="showPreview('skill')">查看</button>
-        <button class="fc-btn" id="fcDlSkill" disabled onclick="dlFile('skill')">下载</button>
-      </div>
-    </div>
-    <div id="skillCards" style="display:flex;gap:10px"></div>
-    <div class="file-card" id="fileCardLocal" style="min-width:220px">
-      <div class="fc-top"><span class="fc-icon">👤</span><span class="fc-name">local.md</span></div>
-      <div class="fc-meta" id="fcMetaLocal">个人偏好</div>
-      <div class="fc-acts">
-        <button class="fc-btn" id="fcDlLocal" onclick="generateLocalMd()">下载</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 旧的 docs-panel 折叠/展开兼容（不再显示） -->
-<div class="docs-panel" id="docsPanel" style="display:none">
+<div class="docs-panel" id="docsPanel">
   <div class="logo" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)">
     <p style="font-size:11px;color:var(--text3);font-family:var(--mono)" data-i18n="docs.title">Claude Code 参考</p>
     <button class="topbar-theme" onclick="toggleDocsPanel()" title="折叠/展开" id="docsToggle" style="font-size:12px">◀</button>
@@ -1997,17 +1966,6 @@ function init(){
     if(app) app.classList.add('docs-collapsed');
   }
   addMsg('ai', t('welcome.message'));
-  // v3: 首次启动弹 STAGE 0 元问询（除非已填过）
-  if(!ls('pc_stage0')){
-    setTimeout(showStage0, 600);
-  } else {
-    S.stage0 = ls('pc_stage0');
-    S.skipSkill = ls('pc_skipSkill') === true;
-  }
-  // 同步顶栏阶段文字
-  const stageNames=['','项目描述','工具架构','自动化识别','CLAUDE.md','SKILL.md','监督修补','文件就绪'];
-  const ts=document.getElementById('topbarStage');
-  if(ts) ts.innerHTML=`<div style="font-size:11px;color:var(--text3)">STAGE ${S.stage||1}/7 — ${stageNames[S.stage||1]||''}</div>`;
 }
 
 function toggleTheme(){
@@ -2394,10 +2352,6 @@ function setStage(n){
   }
   // 更新顶部进度条
   renderStageProgress();
-  // 同步顶栏阶段文字
-  const stageNames=['','项目描述','工具架构','自动化识别','CLAUDE.md','SKILL.md','监督修补','文件就绪'];
-  const ts=document.getElementById('topbarStage');
-  if(ts) ts.innerHTML=`<div style="font-size:11px;color:var(--text3)">STAGE ${n}/7 — ${stageNames[n]||''}</div>`;
 }
 
 // ====== CHAT ======
@@ -4437,145 +4391,6 @@ function submitStage0(){
   document.getElementById('stage0Modal')?.remove();
   if(S.stage < 1) setStage(1);
   // 在主区显示填好的元数据
-  const summary = `STAGE 0 完成：
-• 项目类型：${result.projectType}
-• 操作用户：${result.operator}
-• skill 来源：${result.skillSource}
-• AI 自主权：${result.autoLevel}
-${result.operator === '我自己用' ? '\n⚠️ 你选择"我自己用"，将自动跳过 STAGE 5（SKILL.md 生成）' : ''}`;
-  appendMsg('ai', summary);
-  appendMsg('ai', '现在进入 STAGE 1：请描述你的项目。');
-}
-
-/* === v3 顶栏/抽屉/偏好模态 === */
-function toggleSidebar(){
-  document.querySelector('.app').classList.toggle('sidebar-collapsed');
-}
-function toggleDrawer(){
-  document.querySelector('.app').classList.toggle('drawer-collapsed');
-}
-function openPrefsModal(){
-  const mo = document.createElement('div');
-  mo.className='mo'; mo.id='prefsModal';
-  mo.innerHTML=`
-    <div class="mb" style="width:520px">
-      <div class="mh"><div class="mt">个人偏好（local.md）</div><button class="mc-btn" onclick="document.getElementById('prefsModal').remove()">×</button></div>
-      <div class="mc" style="font-family:var(--sans)">
-        <p style="color:var(--text3);font-size:12px;margin-bottom:12px">一行一条偏好，AI 生成时会参考。例：注释用中文、命名用英文、避免 ORM。</p>
-        <textarea id="prefsModalInput" style="width:100%;min-height:200px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--mono);color:var(--text);resize:vertical;outline:none;line-height:1.7">${esc(S.prefs||'')}</textarea>
-      </div>
-      <div class="mf">
-        <button class="m-btn" onclick="document.getElementById('prefsModal').remove()">取消</button>
-        <button class="m-btn" style="margin-left:auto;background:var(--accent);color:#fff;border-color:var(--accent)" onclick="savePrefsFromModal()">保存</button>
-      </div>
-    </div>`;
-  document.body.appendChild(mo);
-}
-function savePrefsFromModal(){
-  const v = document.getElementById('prefsModalInput').value;
-  S.prefs = v;
-  ls('pc_prefs', v);
-  document.getElementById('prefsInput') && (document.getElementById('prefsInput').value = v);
-  document.getElementById('prefsModal').remove();
-  appendMsg('system','偏好已保存');
-}
-
-/* === STAGE 0 元问询 === */
-function showStage0(){
-  const mo = document.createElement('div');
-  mo.className = 'mo';
-  mo.id = 'stage0Modal';
-  mo.innerHTML = `
-    <div class="mb" style="width:560px">
-      <div class="mh"><div class="mt">开始前，4 个关键问题</div><button class="mc-btn" onclick="skipStage0()">×</button></div>
-      <div class="mc" style="font-family:var(--sans);line-height:1.6">
-        <p style="color:var(--text3);font-size:12px;margin-bottom:16px">填完会自动跳到 STAGE 1，项目描述从这里开始。</p>
-
-        <div class="s0q">
-          <div class="s0q-label">1. 这个项目主要是哪种？</div>
-          <div class="s0q-opts" data-key="projectType">
-            <div class="s0opt" data-val="界面型">界面型 — 小工具、原型、自己点着玩</div>
-            <div class="s0opt" data-val="命令行型">命令行型 — CLI、脚本、批处理</div>
-            <div class="s0opt" data-val="自动化型">自动化型 — 监控、自动回复、定时任务</div>
-            <div class="s0opt" data-val="协作型">协作型 — 团队 SOP、流程规范</div>
-            <div class="s0opt" data-val="模板型">模板型 — 周报、报告、文档生成</div>
-          </div>
-        </div>
-
-        <div class="s0q">
-          <div class="s0q-label">2. 平时谁会用？</div>
-          <div class="s0q-opts" data-key="operator">
-            <div class="s0opt" data-val="我自己用">我自己用</div>
-            <div class="s0opt" data-val="Claude Code 用">Claude Code 用 — 写代码时触发</div>
-            <div class="s0opt" data-val="Agent 用">Agent 用 — AI 自动跑流程</div>
-            <div class="s0opt" data-val="团队用">团队用 — 其他人也会用到</div>
-          </div>
-        </div>
-
-        <div class="s0q">
-          <div class="s0q-label">3. SKILL.md 里的 skill 怎么来？</div>
-          <div class="s0q-opts" data-key="skillSource">
-            <div class="s0opt" data-val="优先模板">优先模板 — 库里有就套</div>
-            <div class="s0opt" data-val="AI 现写">AI 现写 — 每次按需生成</div>
-            <div class="s0opt" data-val="混合" data-recommend="1">混合（推荐）— 先查库，缺啥 AI 补</div>
-          </div>
-        </div>
-
-        <div class="s0q">
-          <div class="s0q-label">4. AI 生成时要不要停下来问？</div>
-          <div class="s0q-opts" data-key="autoLevel">
-            <div class="s0opt" data-val="一口气跑完">一口气跑完 — 中间不打断</div>
-            <div class="s0opt" data-val="关键步骤问">关键步骤问 — STAGE 4/5 停下确认</div>
-            <div class="s0opt" data-val="每步都问">每步都问 — 慢但稳</div>
-          </div>
-        </div>
-      </div>
-      <div class="mf">
-        <button class="m-btn" onclick="skipStage0()">跳过</button>
-        <button class="m-btn" style="margin-left:auto;background:var(--accent);color:#fff;border-color:var(--accent)" onclick="submitStage0()">开始 →</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(mo);
-  mo.querySelectorAll('.s0q-opts').forEach(group => {
-    group.addEventListener('click', e => {
-      const opt = e.target.closest('.s0opt');
-      if(!opt) return;
-      group.querySelectorAll('.s0opt').forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-    });
-  });
-}
-
-function skipStage0(){
-  document.getElementById('stage0Modal')?.remove();
-  S.stage0 = { skipped: true };
-  ls('pc_stage0', S.stage0);
-  if(S.stage < 1) setStage(1);
-  appendMsg('ai', '跳过了 STAGE 0 元问询。直接进入 STAGE 1，请描述你的项目。');
-}
-
-function submitStage0(){
-  const result = {};
-  document.querySelectorAll('#stage0Modal .s0q-opts').forEach(group => {
-    const sel = group.querySelector('.s0opt.selected');
-    if(sel) result[group.dataset.key] = sel.dataset.val;
-  });
-  if(Object.keys(result).length < 4){
-    appendMsg('system','请完成全部 4 题（每题选一个选项）');
-    return;
-  }
-  S.stage0 = result;
-  ls('pc_stage0', result);
-  if(result.operator === '我自己用'){
-    S.skipSkill = true;
-    ls('pc_skipSkill', true);
-  } else {
-    S.skipSkill = false;
-    lremove('pc_skipSkill');
-  }
-  document.getElementById('stage0Modal')?.remove();
-  if(S.stage < 1) setStage(1);
   const summary = `STAGE 0 完成：
 • 项目类型：${result.projectType}
 • 操作用户：${result.operator}
