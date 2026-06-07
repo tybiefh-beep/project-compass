@@ -4385,7 +4385,19 @@ function submitStage0(){
     if(sel) result[group.dataset.key] = sel.dataset.val;
   });
   if(Object.keys(result).length < 4){
-    addSysMsg('请完成全部 4 题（每题选一个选项）');
+    // 在模态框顶部加红字提示（不靠 addSysMsg，模态框会挡住聊天区）
+    const mo=document.getElementById('stage0Modal');
+    if(mo){
+      let hint=mo.querySelector('.s0-hint');
+      if(!hint){
+        hint=document.createElement('div');
+        hint.className='s0-hint';
+        hint.style.cssText='color:var(--red);font-size:12px;text-align:center;padding:8px;background:rgba(217,105,90,0.12);border-radius:8px;margin-bottom:12px';
+        mo.querySelector('.mc').prepend(hint);
+      }
+      hint.textContent=`还差 ${4-Object.keys(result).length} 题未选`;
+      setTimeout(()=>hint.remove(), 3000);
+    }
     return;
   }
   S.stage0 = result;
