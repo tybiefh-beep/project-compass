@@ -11,7 +11,7 @@
 
 Double-click HTML to use | Zero dependencies | Pure browser | API keys stay local
 
-[🚀 Quick Start](#-quick-start) · [✨ Features](#-features) · [📖 Detailed Guide](#-7-stage-workflow) · [中文](./README.md)
+[🚀 Quick Start](#quick-start) · [✨ Features](#features) · [📖 Detailed Guide](#7-stage-workflow) · [中文](./README.md)
 
 </div>
 
@@ -27,7 +27,7 @@ Double-click HTML to use | Zero dependencies | Pure browser | API keys stay loca
 ### Why Choose It?
 
 | Challenge | Traditional | Project Compass |
-|-----------|-----------|-----------------|
+|-----------|-----------|------------------|
 | How to start? | Install Node.js, npm deps... | Double-click HTML file ✅ |
 | API key security? | Upload to server ❌ | Stored locally, never uploaded ✅ |
 | AI model support? | Usually single provider | 8+ model vendors ✅ |
@@ -84,7 +84,7 @@ Left sidebar → Select provider → Enter API Key → Click "Verify"
 After clicking "➕ New Project", the system executes these stages:
 
 | Stage | ⏱️ Time | What it Does |
-|-------|--------|--------------|
+|-------|--------|-----------------------------------------------|
 | 1️⃣ Project Description | ~1 min | Understand you, your project, and pain points |
 | 2️⃣ Tool Architecture Analysis | ~2 min | Map tools → match best practices → architecture |
 | 3️⃣ Automation Identification | ~1 min | Recommend automation strategies, AI vs manual |
@@ -180,7 +180,7 @@ project-compass/
 ### Getting API Keys
 
 | Provider | Apply Link |
-|----------|-----------|
+|----------|----------|
 | Claude | https://console.anthropic.com |
 | OpenAI | https://platform.openai.com/api-keys |
 | DeepSeek | https://platform.deepseek.com |
@@ -199,7 +199,7 @@ project-compass/
 
 ---
 
-## 📝 FAQ
+## �� FAQ
 
 ### Q: Can I share the downloaded HTML file with others?
 
