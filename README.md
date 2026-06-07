@@ -31,7 +31,7 @@
 
 ## 怎么用
 
-1. 下载 `claude-skill 生成器.html`
+1. 下载 `项目罗盘.html`
 2. 双击打开（浏览器）
 3. 左侧选 AI 提供商，填入 API Key，点「验证」确认可用
 4. 顶部点击「＋ 新建项目」创建项目
@@ -60,8 +60,8 @@
 ## 项目结构
 
 ```
-claude-skill-generator/
-├── claude-skill 生成器.html   # 主程序（单文件）
+project-compass/
+├── 项目罗盘.html   # 主程序（单文件）
 ├── skills/                     # 7 个内置 SKILL.md 模板
 │   ├── ai-failure-pattern-collector/
 │   ├── ai-persistent-memory-system/
