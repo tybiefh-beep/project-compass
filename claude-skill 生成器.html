@@ -284,8 +284,9 @@
   .s0q-opts{display:flex;flex-direction:column;gap:6px}
   .s0opt{padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;color:var(--text2);position:relative}
   .s0opt:hover{border-color:var(--border2);color:var(--text)}
-  .s0opt.selected{background:rgba(var(--accent-rgb),0.12);border-color:var(--accent);color:var(--text)}
-  .s0opt[data-recommend="1"]::after{content:"推荐";position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--accent);background:rgba(var(--accent-rgb),0.15);padding:2px 6px;border-radius:4px}
+  .s0opt.selected{background:rgba(var(--accent-rgb),0.12);border-color:var(--accent);color:var(--text);padding-left:32px}
+  .s0opt.selected::before{content:"✓";position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--accent);font-weight:700;font-size:14px}
+  .s0opt[data-recommend="1"]::after{content:"推荐";position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--accent);background:rgba(var(--accent-rgb),0.15);padding:2px 6px;border-radius:4px;pointer-events:none}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
@@ -4358,6 +4359,10 @@ function showStage0(){
       group.querySelectorAll('.s0opt').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
     });
+  });
+  // 点背景关闭（点 .mo 本身而非 .mb 时）
+  mo.addEventListener('click', e => {
+    if(e.target === mo) skipStage0();
   });
 }
 function skipStage0(){
